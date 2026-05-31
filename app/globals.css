@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-deep: #0D1B2A;
+  --color-bg-surface: #142032;
+  --color-bg-elevated: #1C2D42;
+  --color-parchment: #E8D5B0;
+  --color-parchment-dim: #A89070;
+  --color-gold: #C9A84C;
+  --color-gold-dim: #8A6E2F;
+  --color-crimson: #8B1A1A;
+  --color-crimson-bright: #C0392B;
+  --color-success: #2E7D52;
+  --color-danger: #8B1A1A;
+  --color-neutral: #3D5166;
+}
+
+body {
+  background-color: var(--color-bg-deep);
+  color: var(--color-parchment);
+  /* The prompt mentions Inter for body, we will use it via next/font in layout.tsx */
+}
+
+/* Base focus styles */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 12px rgba(201,168,76,0.3);
+}
+
+/* Transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Flip animation */
+.perspective {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* To avoid zoom on iOS */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+/* Atmospheric textured surface background */
+.bg-textured {
+  background-color: var(--color-bg-deep);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(20, 32, 50, 0.5) 0%, transparent 60%),
+    linear-gradient(rgba(13, 27, 42, 0.9), rgba(13, 27, 42, 0.9));
+  /* We can simulate a texture overlay with noise later if needed, but a gradient is a good CSS-only start */
+}
