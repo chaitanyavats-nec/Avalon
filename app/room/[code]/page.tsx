@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
 import { GamePhase } from '@/types/avalon';
 
+import { useMyRole } from '@/hooks/useMyRole';
+
 // Placeholders for phase components
 import Lobby from './phases/Lobby';
 import RoleReveal from './phases/RoleReveal';
@@ -28,6 +30,7 @@ export default function RoomPage() {
   }, []);
 
   const { gameState, roomId, loading, error } = useRoom(roomCode, sessionId);
+  const { myRole } = useMyRole(roomCode, sessionId);
 
   if (!sessionId || loading) {
     return <main className="min-h-screen bg-textured p-4 flex items-center justify-center text-parchment">Loading...</main>;
@@ -56,6 +59,8 @@ export default function RoomPage() {
       gameState={gameState} 
       currentPlayer={currentPlayer} 
       roomCode={roomCode}
+      roomId={roomId as string}
+      myRole={myRole}
     />
   );
 }

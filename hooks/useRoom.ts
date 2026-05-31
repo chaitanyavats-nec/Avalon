@@ -10,7 +10,8 @@ export function useRoom(roomCode: string, sessionId: string) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let channel: any;
+    let isMounted = true;
+    const channel = supabase.channel(`room:${roomCode}`);
 
     async function fetchInitialState() {
       try {
@@ -21,11 +22,11 @@ export function useRoom(roomCode: string, sessionId: string) {
           .single();
 
         if (roomError) throw roomError;
-        setRoomId(room.id);
+        if (isMounted) setRoomId(room.id);
 
         const { data: playersData, error: playersError } = await supabase
           .from('players')
-          .select('*')
+          .select('id, room_id, session_id, name, is_host, is_ready, seat_order')
           .eq('room_id', room.id)
           .order('created_at', { ascending: true });
 
@@ -46,53 +47,57 @@ export function useRoom(roomCode: string, sessionId: string) {
           .eq('room_id', room.id)
           .order('quest_number', { ascending: true });
 
-        setGameState({
-          phase: room.status as any,
-          currentQuest: room.current_quest || 1,
-          questLeaderId: players[room.quest_leader_index || 0]?.id || '',
-          rejectionCount: room.rejection_count || 0,
-          quests: questsData ? questsData.map(q => ({
-            id: q.id,
-            questNumber: q.quest_number,
-            requiredPlayers: q.required_players,
-            requiresTwoFails: false, // We'd compute this based on room settings
-            proposedTeam: q.proposed_team || [],
-            proposalCount: q.proposal_count,
-            teamVoteResult: q.team_vote_result as any,
-            questResult: q.quest_result as any
-          })) : [],
-          players,
-          settings: room.settings as any,
-          ladyOfLakeHolderId: null, // Fetch from lady_of_lake table if needed
-          winner: null,
-        });
-
-        // Set up Realtime subscription
-        channel = supabase.channel(`room:${roomCode}`);
-        
-        channel
-          .on('broadcast', { event: 'game_event' }, ({ payload }: { payload: GameEvent }) => {
-            // Handle different event types here to optimistically update state
-            // For now, we can just refetch on any event to ensure consistency, 
-            // though it's better to update state directly
-            fetchInitialState(); // simple but less efficient
-          })
-          .subscribe();
-
-        setLoading(false);
+        if (isMounted) {
+          setGameState({
+            phase: room.status as any,
+            currentQuest: room.current_quest || 1,
+            questLeaderId: players[room.quest_leader_index || 0]?.id || '',
+            rejectionCount: room.rejection_count || 0,
+            quests: questsData ? questsData.map(q => ({
+              id: q.id,
+              questNumber: q.quest_number,
+              requiredPlayers: q.required_players,
+              requiresTwoFails: false,
+              proposedTeam: q.proposed_team || [],
+              proposalCount: q.proposal_count,
+              teamVoteResult: q.team_vote_result as any,
+              questResult: q.quest_result as any
+            })) : [],
+            players,
+            settings: room.settings as any,
+            ladyOfLakeHolderId: null,
+            winner: null,
+          });
+          setLoading(false);
+        }
       } catch (err: any) {
-        console.error(err);
-        setError('Failed to load room');
-        setLoading(false);
+        if (isMounted) {
+          console.error("Room Load Error:", err);
+          setError(`Failed to load room: ${err.message || JSON.stringify(err)}`);
+          setLoading(false);
+        }
       }
     }
 
     if (roomCode) {
+      channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => {
+          fetchInitialState();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+          fetchInitialState();
+        })
+        .on('broadcast', { event: 'game_event' }, () => {
+          fetchInitialState(); 
+        })
+        .subscribe();
+
       fetchInitialState();
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      isMounted = false;
+      supabase.removeChannel(channel);
     };
   }, [roomCode, supabase, sessionId]);
 
