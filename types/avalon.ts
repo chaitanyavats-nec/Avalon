@@ -14,6 +14,7 @@ export type GamePhase =
   | 'lobby'
   | 'role_reveal'
   | 'quest'
+  | 'quest_reveal'
   | 'lady_of_lake'
   | 'assassin'
   | 'ended';
@@ -26,6 +27,12 @@ export interface RoomSettings {
   playerCount: number;
   roles: RoleName[];          // which optional roles are enabled
   ladyOfLake: boolean;
+  assassinationResult?: {
+    targetName?: string;
+    isMerlin: boolean;
+  };
+  shuffledQuestCards?: QuestCardValue[];
+  revealedCardsCount?: number;
 }
 
 export interface Player {
@@ -35,6 +42,8 @@ export interface Player {
   isHost: boolean;
   isReady: boolean;
   seatOrder: number;
+  team?: Team;
+  role?: RoleName;
 }
 
 export interface MyRole {

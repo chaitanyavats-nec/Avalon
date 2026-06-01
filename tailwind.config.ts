@@ -9,32 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: {
-          deep: "var(--color-bg-deep)",
-          surface: "var(--color-bg-surface)",
-          elevated: "var(--color-bg-elevated)",
-        },
-        parchment: {
-          DEFAULT: "var(--color-parchment)",
-          dim: "var(--color-parchment-dim)",
-        },
-        gold: {
-          DEFAULT: "var(--color-gold)",
-          dim: "var(--color-gold-dim)",
-        },
-        crimson: {
-          DEFAULT: "var(--color-crimson)",
-          bright: "var(--color-crimson-bright)",
-        },
-        status: {
-          success: "var(--color-success)",
-          danger: "var(--color-danger)",
-        },
-        neutral: "var(--color-neutral)",
-      },
-      boxShadow: {
-        'glow-gold': '0 0 12px rgba(201,168,76,0.3)',
-        'glow-crimson': '0 0 12px rgba(139,26,26,0.3)',
+        surface: "var(--color-surface)",
+        border: "var(--color-border)",
+        text: "var(--color-text)",
+        "text-dim": "var(--color-text-dim)",
+        success: "var(--color-success)",
+        danger: "var(--color-danger)",
+        info: "var(--color-info)",
+        neutral: "var(--color-border)",
       },
     },
   },

@@ -2,26 +2,40 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-textured p-4">
-      <div className="flex flex-col items-center space-y-12">
-        <h1 className="font-cinzel text-5xl md:text-7xl tracking-wider text-parchment text-center drop-shadow-lg">
-          AVALON
-        </h1>
+    <main className="min-h-screen bg-realm flex flex-col items-center justify-center p-6">
+      <div className="flex flex-col items-center max-w-sm w-full">
         
-        <div className="flex flex-col space-y-4 w-full max-w-xs">
-          <Link 
-            href="/create"
-            className="w-full py-4 px-6 rounded border border-gold-dim text-gold text-center font-medium transition-all hover:border-gold hover:text-parchment hover:shadow-glow-gold bg-bg-surface bg-opacity-50 backdrop-blur-sm"
-          >
-            Create game
+        {/* Simple Icon */}
+        <div className="w-16 h-16 rounded-lg bg-text text-surface flex items-center justify-center mb-6">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+
+        {/* Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold tracking-tight text-text mb-2">
+            Avalon
+          </h1>
+          <p className="text-text-dim text-sm uppercase tracking-wider">
+            Companion App
+          </p>
+        </div>
+
+        <div className="scroll-panel w-full p-6 flex flex-col space-y-4">
+          <Link href="/create" className="w-full">
+            <button className="btn-primary w-full">
+              Create Game
+            </button>
           </Link>
-          <Link 
-            href="/join"
-            className="w-full py-4 px-6 rounded border border-neutral text-parchment-dim text-center font-medium transition-all hover:border-parchment hover:text-parchment hover:shadow-glow-gold bg-bg-surface bg-opacity-50 backdrop-blur-sm"
-          >
-            Join game
+          
+          <Link href="/join" className="w-full">
+            <button className="btn-ghost w-full border border-border">
+              Join Game
+            </button>
           </Link>
         </div>
+
       </div>
     </main>
   );

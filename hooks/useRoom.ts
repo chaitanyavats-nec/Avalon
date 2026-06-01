@@ -26,7 +26,7 @@ export function useRoom(roomCode: string, sessionId: string) {
 
         const { data: playersData, error: playersError } = await supabase
           .from('players')
-          .select('id, room_id, session_id, name, is_host, is_ready, seat_order')
+          .select('id, room_id, session_id, name, is_host, is_ready, seat_order, team, role')
           .eq('room_id', room.id)
           .order('created_at', { ascending: true });
 
@@ -39,6 +39,8 @@ export function useRoom(roomCode: string, sessionId: string) {
           isHost: p.is_host,
           isReady: p.is_ready,
           seatOrder: p.seat_order || 0,
+          team: p.team as any,
+          role: p.role as any,
         }));
 
         const { data: questsData } = await supabase
@@ -85,6 +87,9 @@ export function useRoom(roomCode: string, sessionId: string) {
           fetchInitialState();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+          fetchInitialState();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quests' }, () => {
           fetchInitialState();
         })
         .on('broadcast', { event: 'game_event' }, () => {

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,8 +7,6 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function JoinGame() {
   const router = useRouter();
-  const supabase = createClient();
-  
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,35 +15,47 @@ export default function JoinGame() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!code.trim() || code.length !== 6) {
-      setError('Please enter a valid 6-character room code.');
-      return;
-    }
-
-    if (!name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-
     setLoading(true);
 
+    if (code.length !== 6) {
+      setError('Room code must be exactly 6 characters.');
+      setLoading(false);
+      return;
+    }
+
+    if (name.trim().length < 2) {
+      setError('Please enter a valid name.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const upperCode = code.toUpperCase();
-      
-      // Look up room
+      const supabase = createClient();
+      const codeUpper = code.toUpperCase();
+
       const { data: room, error: roomError } = await supabase
         .from('rooms')
-        .select('id, status')
-        .eq('code', upperCode)
+        .select('*')
+        .eq('code', codeUpper)
         .single();
 
       if (roomError || !room) {
-        throw new Error('Room not found. Check the code and try again.');
+        throw new Error('Room not found. Please check the code.');
       }
 
       if (room.status !== 'lobby') {
-        throw new Error('This game has already started.');
+        throw new Error('Game has already started.');
+      }
+
+      const { data: existingPlayers, error: countError } = await supabase
+        .from('players')
+        .select('id')
+        .eq('room_id', room.id);
+
+      if (countError) throw countError;
+
+      if (existingPlayers.length >= 10) {
+        throw new Error('Room is full (max 10 players).');
       }
 
       let sessionId = localStorage.getItem('avalon_session_id');
@@ -54,75 +64,74 @@ export default function JoinGame() {
         localStorage.setItem('avalon_session_id', sessionId);
       }
 
-      // Check if player already exists in this room (rejoining lobby)
-      const { data: existingPlayer } = await supabase
+      const { error: joinError } = await supabase
         .from('players')
-        .select('id')
-        .eq('room_id', room.id)
-        .eq('session_id', sessionId)
-        .single();
+        .insert({
+          room_id: room.id,
+          session_id: sessionId,
+          name: name.trim()
+        });
 
-      if (!existingPlayer) {
-        // Create new player
-        const { error: playerError } = await supabase
-          .from('players')
-          .insert({
-            room_id: room.id,
-            session_id: sessionId,
-            name: name.trim(),
-            is_host: false,
-          });
+      if (joinError) throw joinError;
 
-        if (playerError) throw playerError;
-      }
-
-      router.push(`/room/${upperCode}`);
+      router.push(`/room/${codeUpper}`);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to join game');
+      setError(err.message);
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-textured p-4 md:p-8 flex flex-col items-center">
-      <div className="w-full max-w-md bg-bg-surface border border-neutral rounded-lg p-6 shadow-xl">
-        <h1 className="font-cinzel text-3xl text-gold mb-6 text-center">Join Game</h1>
-
-        <form onSubmit={handleJoin} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-parchment-dim text-sm uppercase tracking-wider block">Room Code</label>
+    <div className="min-h-screen bg-realm flex flex-col items-center justify-center p-6">
+      <div className="max-w-sm w-full">
+        <h1 className="text-2xl font-bold text-center mb-6">Join Game</h1>
+        
+        <form onSubmit={handleJoin} className="scroll-panel p-6 flex flex-col space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-text-dim">Room Code</label>
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              className="w-full bg-bg-deep border border-neutral rounded p-3 text-parchment font-mono text-center tracking-widest uppercase focus:border-gold focus:ring-1 focus:ring-gold outline-none transition-colors"
-              placeholder="ABCDEF"
+              placeholder="e.g. ABCDEF"
+              className="medieval-input uppercase text-center tracking-widest font-mono"
               maxLength={6}
+              disabled={loading}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-parchment-dim text-sm uppercase tracking-wider block">Your Name</label>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-text-dim">Your Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-bg-deep border border-neutral rounded p-3 text-parchment focus:border-gold focus:ring-1 focus:ring-gold outline-none transition-colors"
-              placeholder="e.g. Lancelot"
+              placeholder="Enter your name"
+              className="medieval-input"
               maxLength={20}
+              disabled={loading}
               required
             />
           </div>
 
-          {error && <div className="text-crimson-bright text-sm">{error}</div>}
+          {error && (
+            <div className="text-danger text-sm text-center p-2 bg-red-50 rounded">
+              {error}
+            </div>
+          )}
 
-          <Button type="submit" variant="primary" className="w-full" disabled={loading}>
-            {loading ? 'Joining...' : 'Join Room'}
+          <div className="pt-2">
+            <Button type="submit" className="w-full" variant="primary" disabled={loading || code.length !== 6 || name.length < 2}>
+              {loading ? 'Joining...' : 'Join Game'}
+            </Button>
+          </div>
+          
+          <Button type="button" variant="ghost" className="w-full text-sm" onClick={() => router.push('/')} disabled={loading}>
+            Back
           </Button>
         </form>
       </div>
-    </main>
+    </div>
   );
 }
