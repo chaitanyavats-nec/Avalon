@@ -239,7 +239,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                   </Button>
                 )}
                 <Button 
-                  onClick={startGame} 
+                  onClick={openRolesModal} 
                   disabled={loading || !allReady || currentCount !== requiredPlayers} 
                   variant="primary"
                   className="w-full"
@@ -251,8 +251,328 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
               </div>
             </>
           )}
+
+          {/* Game Settings Preview (Visible to all) */}
+          <div className="mt-4 border-t border-border pt-4 text-left">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-text-dim mb-2.5">Enabled Settings</h3>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="px-2.5 py-1 bg-green-50 border border-success/20 text-success rounded-md text-[11px] font-semibold flex items-center gap-1 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Merlin
+              </span>
+              <span className="px-2.5 py-1 bg-red-50 border border-danger/20 text-danger rounded-md text-[11px] font-semibold flex items-center gap-1 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" /> Assassin
+              </span>
+              {gameState.settings.roles?.map(role => {
+                const isGood = role === 'Percival';
+                return (
+                  <span 
+                    key={role} 
+                    className={`px-2.5 py-1 border rounded-md text-[11px] font-semibold shadow-sm flex items-center gap-1 ${
+                      isGood 
+                        ? 'bg-green-50 border-success/20 text-success' 
+                        : 'bg-red-50 border-danger/20 text-danger'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isGood ? 'bg-success' : 'bg-danger'}`} /> {role}
+                  </span>
+                );
+              })}
+              {gameState.settings.ladyOfLake && (
+                <span className="px-2.5 py-1 bg-blue-50 border border-blue-200 text-info rounded-md text-[11px] font-semibold flex items-center gap-1 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-info" /> Lady of the Lake
+                </span>
+              )}
+              {(!gameState.settings.roles || gameState.settings.roles.length === 0) && !gameState.settings.ladyOfLake && (
+                <span className="text-xs text-text-dim italic">No optional roles enabled.</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Roles Selection Modal for Host */}
+      {(() => {
+        if (!showRolesModal) return null;
+
+        const evilCounts: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
+        const goodCounts: Record<number, number> = { 5: 3, 6: 4, 7: 4, 8: 5, 9: 6, 10: 6 };
+        
+        const goodTeamSize = goodCounts[requiredPlayers] || 3;
+        const evilTeamSize = evilCounts[requiredPlayers] || 2;
+        
+        const hasPercival = selectedRoles.includes('Percival');
+        const hasMorgana = selectedRoles.includes('Morgana');
+        const hasMordred = selectedRoles.includes('Mordred');
+        const hasOberon = selectedRoles.includes('Oberon');
+        
+        const selectedEvilOptionalCount = (hasMorgana ? 1 : 0) + (hasMordred ? 1 : 0) + (hasOberon ? 1 : 0);
+        const maxEvilOptionalCount = evilTeamSize - 1;
+        
+        const isEvilRolesSelectionValid = selectedEvilOptionalCount <= maxEvilOptionalCount;
+
+        const toggleRole = (role: string) => {
+          if (selectedRoles.includes(role)) {
+            setSelectedRoles(selectedRoles.filter(r => r !== role));
+          } else {
+            setSelectedRoles([...selectedRoles, role]);
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-surface border border-border rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-border flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-text">Select Roles & Rules</h2>
+                  <p className="text-xs text-text-dim mt-0.5">Configure your game of Avalon ({requiredPlayers} Players)</p>
+                </div>
+                <button 
+                  onClick={() => setShowRolesModal(false)}
+                  className="p-1.5 rounded-full hover:bg-gray-100 text-text-dim hover:text-text transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content - Scrollable */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-6 text-left">
+                
+                {/* Good Team Section */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-success mb-3 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-success" /> Good Team ({goodTeamSize} Players)
+                  </h3>
+                  <div className="space-y-2.5">
+                    {/* Merlin (Core) */}
+                    <div className="flex items-start gap-3 p-3.5 rounded-xl border border-success/20 bg-success/5 opacity-85 select-none">
+                      <input type="checkbox" checked disabled className="mt-1 accent-success cursor-default" />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-text">Merlin</span>
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-success/20 text-success tracking-wider font-mono">Required</span>
+                        </div>
+                        <p className="text-xs text-text-dim mt-0.5">Knows who is Evil (except Mordred). Must remain hidden from the Assassin.</p>
+                      </div>
+                    </div>
+                    
+                    {/* Percival (Optional) */}
+                    <div 
+                      onClick={() => toggleRole('Percival')}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        hasPercival 
+                          ? 'border-success bg-success/10' 
+                          : 'border-border bg-surface hover:bg-gray-50'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={hasPercival} 
+                        onChange={() => {}} 
+                        className="mt-1 accent-success pointer-events-none" 
+                      />
+                      <div>
+                        <span className="font-bold text-sm text-text">Percival</span>
+                        <p className="text-xs text-text-dim mt-0.5">Knows who Merlin and Morgana are. Protects Merlin by acting as a decoy.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Evil Team Section */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-danger mb-3 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-danger" /> Evil Team ({evilTeamSize} Players)
+                  </h3>
+                  <div className="space-y-2.5">
+                    {/* Assassin (Core) */}
+                    <div className="flex items-start gap-3 p-3.5 rounded-xl border border-danger/20 bg-danger/5 opacity-85 select-none">
+                      <input type="checkbox" checked disabled className="mt-1 accent-danger cursor-default" />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-text">Assassin</span>
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-danger/20 text-danger tracking-wider font-mono">Required</span>
+                        </div>
+                        <p className="text-xs text-text-dim mt-0.5">Has a final chance to steal victory at the end of the game by guessing Merlin.</p>
+                      </div>
+                    </div>
+                    
+                    {/* Morgana */}
+                    <div 
+                      onClick={() => toggleRole('Morgana')}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        hasMorgana 
+                          ? 'border-danger bg-danger/10' 
+                          : 'border-border bg-surface hover:bg-gray-50'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={hasMorgana} 
+                        onChange={() => {}} 
+                        className="mt-1 accent-danger pointer-events-none" 
+                      />
+                      <div>
+                        <span className="font-bold text-sm text-text">Morgana</span>
+                        <p className="text-xs text-text-dim mt-0.5">Appears as Merlin to Percival, confusing the forces of Good.</p>
+                      </div>
+                    </div>
+
+                    {/* Mordred */}
+                    <div 
+                      onClick={() => toggleRole('Mordred')}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        hasMordred 
+                          ? 'border-danger bg-danger/10' 
+                          : 'border-border bg-surface hover:bg-gray-50'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={hasMordred} 
+                        onChange={() => {}} 
+                        className="mt-1 accent-danger pointer-events-none" 
+                      />
+                      <div>
+                        <span className="font-bold text-sm text-text">Mordred</span>
+                        <p className="text-xs text-text-dim mt-0.5">Hidden from Merlin. Merlin remains blind to Mordred's identity.</p>
+                      </div>
+                    </div>
+
+                    {/* Oberon */}
+                    <div 
+                      onClick={() => toggleRole('Oberon')}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        hasOberon 
+                          ? 'border-danger bg-danger/10' 
+                          : 'border-border bg-surface hover:bg-gray-50'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={hasOberon} 
+                        onChange={() => {}} 
+                        className="mt-1 accent-danger pointer-events-none" 
+                      />
+                      <div>
+                        <span className="font-bold text-sm text-text">Oberon</span>
+                        <p className="text-xs text-text-dim mt-0.5">Isolated from Evil. Does not know the other Evil players, nor do they know him.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Special Rules Section */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-info mb-3 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-info" /> Special Rules
+                  </h3>
+                  <div 
+                    onClick={() => setLadyOfLake(!ladyOfLake)}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                      ladyOfLake 
+                        ? 'border-info bg-info/10' 
+                        : 'border-border bg-surface hover:bg-gray-50'
+                    }`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={ladyOfLake} 
+                      onChange={() => {}} 
+                      className="mt-1 accent-info pointer-events-none" 
+                    />
+                    <div>
+                      <span className="font-bold text-sm text-text">Lady of the Lake</span>
+                      <p className="text-xs text-text-dim mt-0.5">Allows players to investigate another player's alignment after quests 2, 3, and 4.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Validation & Live Composition Panel */}
+                <div className="bg-gray-50 border border-border rounded-xl p-4 space-y-3 text-left">
+                  <h4 className="text-xs font-bold text-text uppercase tracking-wider">Game Composition Summary</h4>
+                  
+                  {/* Visual Ratio Indicator */}
+                  <div className="flex h-3 w-full rounded-full overflow-hidden bg-gray-200">
+                    <div 
+                      className="bg-success transition-all duration-300"
+                      style={{ width: `${(goodTeamSize / requiredPlayers) * 100}%` }}
+                    />
+                    <div 
+                      className="bg-danger transition-all duration-300"
+                      style={{ width: `${(evilTeamSize / requiredPlayers) * 100}%` }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="font-bold text-success block">Good Team ({goodTeamSize})</span>
+                      <ul className="list-disc pl-4 text-text-dim mt-1 space-y-0.5">
+                        <li>Merlin</li>
+                        {hasPercival && <li>Percival</li>}
+                        {goodTeamSize - 1 - (hasPercival ? 1 : 0) > 0 && (
+                          <li>{goodTeamSize - 1 - (hasPercival ? 1 : 0)}x Loyal Servant</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="font-bold text-danger block">Evil Team ({evilTeamSize})</span>
+                      <ul className="list-disc pl-4 text-text-dim mt-1 space-y-0.5">
+                        <li>Assassin</li>
+                        {hasMorgana && <li>Morgana</li>}
+                        {hasMordred && <li>Mordred</li>}
+                        {hasOberon && <li>Oberon</li>}
+                        {evilTeamSize - 1 - selectedEvilOptionalCount > 0 && (
+                          <li>{evilTeamSize - 1 - selectedEvilOptionalCount}x Minion of Mordred</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Helpful Custom Warnings */}
+                  {hasMorgana && !hasPercival && (
+                    <div className="p-2.5 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg text-xs font-medium">
+                      ⚠️ <strong>Morgana</strong> is active but <strong>Percival</strong> is not. Morgana's ability only works if Percival is enabled to be deceived.
+                    </div>
+                  )}
+
+                  {/* Validation Warnings */}
+                  {!isEvilRolesSelectionValid && (
+                    <div className="p-2.5 bg-red-50 border border-red-200 text-danger rounded-lg text-xs font-bold animate-pulse">
+                      🚫 Too many Evil optional roles selected! At {requiredPlayers} players, you can select at most {maxEvilOptionalCount} optional Evil role{maxEvilOptionalCount > 1 ? 's' : ''} (since Assassin occupies 1 slot). Please deselect some.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-border flex gap-4 bg-gray-50/50 rounded-b-2xl">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowRolesModal(false)}
+                  className="flex-1"
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="primary" 
+                  onClick={beginGame}
+                  className="flex-1"
+                  disabled={loading || !isEvilRolesSelectionValid}
+                >
+                  {loading ? 'Starting Game...' : 'Begin Quest'}
+                </Button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
