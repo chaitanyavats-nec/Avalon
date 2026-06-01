@@ -11,6 +11,20 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const [votes, setVotes] = useState<any[]>([]);
   const [questCards, setQuestCards] = useState<any[]>([]);
   const [hasSubmittedCard, setHasSubmittedCard] = useState(false);
+  const [selectedQuestNum, setSelectedQuestNum] = useState<number | null>(null);
+  const [hoveredQuestNum, setHoveredQuestNum] = useState<number | null>(null);
+
+  const handleMouseEnter = (questNum: number) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
+      setHoveredQuestNum(questNum);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
+      setHoveredQuestNum(null);
+    }
+  };
 
   const currentQuest = gameState.quests.find(q => q.questNumber === gameState.currentQuest && !q.questResult) || gameState.quests.find(q => q.questNumber === gameState.currentQuest) || gameState.quests[gameState.currentQuest - 1];
 
@@ -315,11 +329,14 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
     unassignedCards--;
   }
 
+  const questTitles = ['The First Trial', 'Into the Shadow', 'The Crucible', 'The Darkest Hour', 'The Final Stand'];
+  const questSubtitles = ['Trust must be forged in the fires of uncertainty.', 'Deception lurks beneath every smile.', 'Only the worthy shall endure this test.', 'Betrayal or loyalty — the truth draws near.', 'Everything you\'ve fought for comes down to this.'];
+
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center">
       
       {/* Header */}
-      <div className="text-center mt-6 mb-4">
+      <div className="text-center mt-6 mb-4 animate-slideDown">
         <h1 className="text-2xl font-bold text-text">
           Quest {currentQuest.questNumber}
         </h1>
@@ -328,13 +345,17 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
         </p>
       </div>
 
-      {/* Quest Track */}
-      <div className="flex gap-2 mb-6">
+      {/* Quest Track (Centered and Bounded for Mobile responsiveness) */}
+      <div className="relative w-[232px] mx-auto flex gap-2 mb-6 justify-center">
         {gameState.quests.map(q => {
           const isCurrent = q.questNumber === gameState.currentQuest;
+          const isSelected = selectedQuestNum === q.questNumber;
           return (
-            <div key={q.id} 
-                 className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold`}
+            <button key={q.id} 
+                 onMouseEnter={() => handleMouseEnter(q.questNumber)}
+                 onMouseLeave={handleMouseLeave}
+                 onClick={() => setSelectedQuestNum(selectedQuestNum === q.questNumber ? null : q.questNumber)}
+                 className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
                  style={{
                    backgroundColor: q.questResult === 'pass' 
                      ? 'var(--color-success)' 
@@ -345,14 +366,90 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                    border: `1px solid ${q.questResult ? 'transparent' : isCurrent ? 'var(--color-text)' : 'var(--color-border)'}`
                  }}>
               {q.requiredPlayers}
-            </div>
+            </button>
           );
         })}
+
+        {/* Bounded Absolute Popup Details Card */}
+        {(() => {
+          const activeQuestNum = hoveredQuestNum || selectedQuestNum;
+          if (activeQuestNum === null) return null;
+          
+          const q = gameState.quests.find(x => x.questNumber === activeQuestNum);
+          if (!q) return null;
+
+          const isCurrent = q.questNumber === gameState.currentQuest;
+          const leaderId = gameState.settings?.questLeaders?.[q.questNumber] || (isCurrent ? gameState.questLeaderId : null);
+          const leader = gameState.players.find(p => p.id === leaderId);
+          const teamPlayers = q.proposedTeam?.map(pid => gameState.players.find(p => p.id === pid)).filter(Boolean) || [];
+          
+          const idx = q.questNumber - 1;
+          const arrowLeft = idx * 48 + 44; // Mathematically centered: idx * (badge width + gap) + half width - overflow offset
+
+          return (
+            <div 
+              className="absolute top-full z-50 w-[280px] mt-3 pointer-events-none sm:pointer-events-auto"
+              style={{ left: '50%', transform: 'translateX(-50%)' }}
+            >
+              <div className="relative bg-surface border border-border rounded-xl shadow-xl p-4 text-left animate-slideDown">
+                {/* Dynamic Bounded Triangle Arrow */}
+                <div 
+                  className="absolute -top-1.5 w-3 h-3 bg-surface border-t border-l border-border" 
+                  style={{ left: `${arrowLeft}px`, transform: 'translateX(-50%) rotate(45deg)' }}
+                />
+
+                <div className="flex justify-between items-center mb-3 pb-1 border-b border-border">
+                  <h3 className="font-bold text-xs text-text">Quest {q.questNumber}</h3>
+                  <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                    q.questResult === 'pass' 
+                      ? 'bg-success/10 text-success' 
+                      : q.questResult === 'fail' 
+                        ? 'bg-danger/10 text-danger' 
+                        : isCurrent 
+                          ? 'bg-blue-50/10 text-blue-600' 
+                          : 'bg-gray-100 text-text-dim'
+                  }`}>
+                    {q.questResult === 'pass' 
+                      ? 'Passed' 
+                      : q.questResult === 'fail' 
+                        ? 'Failed' 
+                        : isCurrent 
+                          ? 'Active' 
+                          : 'Not Started'
+                    }
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-text-dim text-[10px]">Leader:</span>
+                    <span className="font-semibold text-text">{leader ? leader.name : 'TBD'}</span>
+                  </div>
+                  
+                  <div>
+                    <span className="text-text-dim text-[10px] block mb-1">Party ({q.requiredPlayers}):</span>
+                    {teamPlayers.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {teamPlayers.map(p => (
+                          <span key={p!.id} className="px-2 py-0.5 bg-gray-50 border border-border text-text rounded-full text-[10px] font-semibold">
+                            {p!.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-text-dim italic">No team proposed yet.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6 mt-2">
+      <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6 mt-2 animate-slideUp">
         <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center bg-gray-50 border border-border px-4 py-2 rounded-full shadow-sm text-sm font-medium">
+          <div className="inline-flex items-center bg-gray-50 border border-border px-4 py-2 rounded-full shadow-sm text-sm font-medium animate-pulseGlow">
             <Crown className="w-4 h-4 text-info mr-2" /> 
             <span className="text-text-dim">Leader:</span> 
             <span className="text-info font-bold ml-1">{gameState.players.find(p => p.id === gameState.questLeaderId)?.name}</span>
@@ -412,7 +509,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
             </div>
 
             {!myVote ? (
-              <div className="flex gap-4 justify-center">
+              <div className="flex gap-4 justify-center animate-scaleIn">
                 <Button onClick={() => submitVote('approve')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
                   Approve
                 </Button>

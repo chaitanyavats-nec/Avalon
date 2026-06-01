@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 
-export default function JoinGame() {
+function JoinGameContent() {
   const router = useRouter();
-  const [code, setCode] = useState('');
+  const searchParams = useSearchParams();
+  const [code, setCode] = useState(searchParams.get('code') || '');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -133,5 +134,13 @@ export default function JoinGame() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function JoinGame() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-realm flex items-center justify-center p-6"><div className="text-text">Loading...</div></div>}>
+      <JoinGameContent />
+    </Suspense>
   );
 }

@@ -66,11 +66,11 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
       <div className="text-center w-full max-w-md flex flex-col items-center">
-        <Sword className="w-16 h-16 mb-4 text-danger" strokeWidth={1.5} />
-        <h1 className="text-2xl font-bold text-text mb-2 text-danger">The Assassin Strikes</h1>
+        <Sword className="w-20 h-20 mb-4 text-danger animate-float" strokeWidth={1.5} />
+        <h1 className="text-2xl font-bold text-text mb-2 text-danger animate-slideDown">The Assassin Strikes</h1>
         
         {isAssassin ? (
-          <div className="bg-surface border border-border rounded-lg shadow-sm p-6 mt-6">
+          <div className="bg-surface border border-border rounded-lg shadow-sm p-6 mt-6 w-full animate-slideUp animate-pulseGlowDanger">
             <p className="text-sm font-medium text-text mb-6">
               The forces of Good have succeeded in 3 quests. However, you have one final chance to steal the victory. 
               <br/><br/>
@@ -98,7 +98,7 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
             </Button>
           </div>
         ) : (
-          <div className="mt-8 bg-surface border border-border p-6 rounded-lg">
+          <div className="mt-8 bg-surface border border-border p-6 rounded-lg animate-fadeIn">
             <p className="text-lg font-bold text-text mb-2">Wait in silence.</p>
             <p className="text-sm text-text-dim">
               The Assassin <strong className="text-danger">{assassin.name}</strong> is currently making their final decision. If they find Merlin, Evil will snatch the victory!

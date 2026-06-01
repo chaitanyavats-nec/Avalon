@@ -67,13 +67,13 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
       <div className="text-center w-full max-w-md flex flex-col items-center">
-        <div className="mb-6 text-text-dim">
-          {assassination ? <Sword className="w-16 h-16" strokeWidth={1.5} /> : <Castle className="w-16 h-16" strokeWidth={1.5} />}
+        <div className="mb-4 text-text-dim animate-float">
+          {assassination ? <Sword className="w-20 h-20" strokeWidth={1.5} /> : <Castle className="w-20 h-20" strokeWidth={1.5} />}
         </div>
-        <h1 className="text-3xl font-bold text-text mb-6">Game Over</h1>
+        <h1 className="text-3xl font-bold text-text mb-6 animate-slideDown">Game Over</h1>
 
         {assassination && (
-          <div className={`w-full p-6 mb-8 rounded-xl border text-center shadow-sm ${assassination.isMerlin ? 'bg-danger/10 border-danger text-danger' : 'bg-success/10 border-success text-success'}`}>
+          <div className={`w-full p-6 mb-8 rounded-xl border text-center shadow-sm animate-scaleIn ${assassination.isMerlin ? 'bg-danger/10 border-danger text-danger animate-pulseGlowDanger' : 'bg-success/10 border-success text-success animate-pulseGlowSuccess'}`}>
             <h2 className="text-2xl font-bold mb-2 uppercase tracking-widest">
               {assassination.isMerlin ? 'Evil Wins!' : 'Good Wins!'}
             </h2>
@@ -85,20 +85,20 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
         )}
 
         {!assassination && evilWonByQuests && (
-          <div className="w-full p-6 mb-8 rounded-xl border text-center shadow-sm bg-danger/10 border-danger text-danger">
+          <div className="w-full p-6 mb-8 rounded-xl border text-center shadow-sm bg-danger/10 border-danger text-danger animate-scaleIn animate-pulseGlowDanger">
             <h2 className="text-2xl font-bold mb-2 uppercase tracking-widest">Evil Wins!</h2>
             <p className="font-medium text-sm">3 Quests Failed.</p>
           </div>
         )}
 
         {!assassination && !evilWonByQuests && (
-          <div className="w-full p-6 mb-8 rounded-xl border text-center shadow-sm bg-success/10 border-success text-success">
+          <div className="w-full p-6 mb-8 rounded-xl border text-center shadow-sm bg-success/10 border-success text-success animate-scaleIn animate-pulseGlowSuccess">
             <h2 className="text-2xl font-bold mb-2 uppercase tracking-widest">Good Wins!</h2>
             <p className="font-medium text-sm">3 Quests Passed (and no Assassin found).</p>
           </div>
         )}
         
-        <div className="bg-surface border border-border rounded-xl shadow-sm p-6 mb-8 text-left">
+        <div className="bg-surface border border-border rounded-xl shadow-sm p-6 mb-8 text-left animate-slideUp">
           <h2 className="text-lg font-bold text-success mb-3 text-center">Good Team</h2>
           <div className="flex flex-wrap gap-2 justify-center mb-6">
             {goodPlayers.length > 0 ? goodPlayers.map(p => (

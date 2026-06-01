@@ -55,7 +55,13 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
     }
     
     // Clean up settings
-    const newSettings = { ...currentSettings };
+    const newSettings = { 
+      ...currentSettings,
+      questLeaders: {
+        ...(currentSettings.questLeaders || {}),
+        [currentQuest.questNumber]: gameState.questLeaderId
+      }
+    };
     delete newSettings.shuffledQuestCards;
     delete newSettings.revealedCardsCount;
 
@@ -99,8 +105,8 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
       <div className="text-center w-full max-w-2xl">
-        <h1 className="text-3xl font-bold text-text mb-2">Quest Results</h1>
-        <p className="text-sm text-text-dim mb-12">
+        <h1 className="text-3xl font-bold text-text mb-2 animate-slideDown">Quest Results</h1>
+        <p className="text-sm text-text-dim mb-12 animate-fadeIn">
           The party has returned. {isLeader ? 'You must reveal their fate.' : 'Waiting for the leader to reveal their fate.'}
         </p>
 
@@ -148,7 +154,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
         </div>
 
         {isLeader && revealedCount < shuffledCards.length && (
-          <Button size="lg" variant="primary" onClick={revealNextCard} disabled={loading} className="animate-pulse px-12 py-6 text-lg">
+          <Button size="lg" variant="primary" onClick={revealNextCard} disabled={loading} className="animate-pulse px-12 py-6 text-lg animate-pulseGlow">
             Reveal Next Card
           </Button>
         )}

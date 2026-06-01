@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
-import { Crown } from 'lucide-react';
+import { Crown, Copy, Share, Check } from 'lucide-react';
 
 export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string }) {
   const [loading, setLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const supabase = createClient();
 
   const toggleReady = async () => {
@@ -64,20 +66,47 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
       
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 animate-fadeIn">
         <h1 className="text-3xl font-bold text-text mb-4">
           Lobby
         </h1>
-        <div className="inline-flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-2">
+        <div className="inline-flex items-center gap-3 bg-surface border border-border rounded-lg pl-4 pr-2 py-2">
           <span className="text-text-dim text-xs uppercase font-medium">Room Code</span>
-          <span className="text-text font-mono font-bold text-xl tracking-widest">
+          <span className="text-text font-mono font-bold text-xl tracking-widest mr-2">
             {roomCode}
           </span>
+          <div className="flex gap-1 border-l border-border pl-3">
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(roomCode);
+                setCopiedCode(true);
+                setTimeout(() => setCopiedCode(false), 2000);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-md text-text-dim hover:text-text transition-colors active:bg-gray-200"
+              title="Copy Room Code"
+              disabled={copiedCode}
+            >
+              {copiedCode ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+            </button>
+            <button 
+              onClick={() => {
+                const joinLink = `${window.location.origin}/join?code=${roomCode}`;
+                navigator.clipboard.writeText(joinLink);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2000);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-md text-text-dim hover:text-text transition-colors active:bg-gray-200"
+              title="Copy Join Link"
+              disabled={copiedLink}
+            >
+              {copiedLink ? <Check className="w-4 h-4 text-success" /> : <Share className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Player Board */}
-      <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-sm p-6">
+      <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-sm p-6 animate-slideUp">
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-border">
           <h2 className="text-lg font-bold text-text">Players</h2>
           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-text-dim">
@@ -85,7 +114,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
           </span>
         </div>
         
-        <ul className="space-y-2 mb-8">
+        <ul className="space-y-2 mb-8 stagger-children">
           {gameState.players.map(p => (
             <li key={p.id} 
                 className={`flex justify-between items-center p-3 rounded-lg border ${p.id === currentPlayer.id ? 'border-text bg-gray-50' : 'border-border bg-surface'}`}>
