@@ -18,6 +18,10 @@ const config: Config = {
         info: "var(--color-info)",
         neutral: "var(--color-border)",
       },
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        heading: ["var(--font-heading)"],
+      },
     },
   },
   plugins: [],
