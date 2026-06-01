@@ -27,14 +27,42 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
     setLoading(false);
   };
 
-  const startGame = async () => {
+  const [showRolesModal, setShowRolesModal] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(gameState.settings.roles || []);
+  const [ladyOfLake, setLadyOfLake] = useState(gameState.settings.ladyOfLake || false);
+
+  const openRolesModal = () => {
+    setSelectedRoles(gameState.settings.roles || []);
+    setLadyOfLake(gameState.settings.ladyOfLake || false);
+    setShowRolesModal(true);
+  };
+
+  const beginGame = async () => {
     setLoading(true);
-    const { error } = await supabase.functions.invoke('assign-roles', {
-      body: { room_id: roomId }
-    });
-    if (error) {
-      console.error(error);
-      alert('Failed to start game: ' + error.message);
+    try {
+      const newSettings = {
+        ...gameState.settings,
+        roles: selectedRoles,
+        ladyOfLake
+      };
+      
+      const { error: updateError } = await supabase
+        .from('rooms')
+        .update({ settings: newSettings })
+        .eq('id', roomId);
+        
+      if (updateError) throw updateError;
+
+      const { error: invokeError } = await supabase.functions.invoke('assign-roles', {
+        body: { room_id: roomId }
+      });
+      
+      if (invokeError) throw invokeError;
+      
+      setShowRolesModal(false);
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to start game: ' + (err.message || JSON.stringify(err)));
     }
     setLoading(false);
   };
@@ -113,6 +141,35 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
             {currentCount} / {requiredPlayers}
           </span>
         </div>
+
+        {currentPlayer.isHost && (
+          <div className="mb-6 bg-gray-50 border border-border rounded-lg p-3.5 flex items-center justify-between shadow-sm animate-fadeIn">
+            <div className="flex flex-col text-left">
+              <span className="text-sm font-bold text-text">Target Players</span>
+              <span className="text-[10px] text-text-dim">Adjust required room capacity</span>
+            </div>
+            <select
+              value={requiredPlayers}
+              onChange={async (e) => {
+                const count = parseInt(e.target.value);
+                const newSettings = { ...gameState.settings, playerCount: count };
+                setLoading(true);
+                const { error } = await supabase.from('rooms').update({ settings: newSettings }).eq('id', roomId);
+                if (error) {
+                  console.error(error);
+                  alert("Failed to update target players: " + error.message);
+                }
+                setLoading(false);
+              }}
+              disabled={loading}
+              className="bg-surface border border-border rounded-md px-3 py-1.5 text-sm font-semibold text-text focus:outline-none focus:ring-2 focus:ring-text cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              {[5, 6, 7, 8, 9, 10].map(n => (
+                <option key={n} value={n}>{n} Players</option>
+              ))}
+            </select>
+          </div>
+        )}
         
         <ul className="space-y-2 mb-8 stagger-children">
           {gameState.players.map(p => (
@@ -127,7 +184,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                     You
                   </span>
                 )}
-                {p.isHost && <Crown className="w-4 h-4 text-info" title="Host" />}
+                {p.isHost && <span title="Host"><Crown className="w-4 h-4 text-info" /></span>}
               </span>
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${p.isReady ? 'bg-success/10 text-success' : 'bg-gray-100 text-text-dim'}`}>

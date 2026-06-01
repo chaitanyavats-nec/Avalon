@@ -56,7 +56,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -102,7 +102,7 @@ serve(async (req) => {
     rolesPool.sort(() => Math.random() - 0.5);
     players.sort(() => Math.random() - 0.5);
 
-    const assignedPlayers = players.map((p, idx) => ({
+    const assignedPlayers = players.map((p: any, idx: number) => ({
       ...p,
       role: rolesPool[idx],
       team: ROLES[rolesPool[idx] as keyof typeof ROLES].team

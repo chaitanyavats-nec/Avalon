@@ -12,9 +12,10 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
     setLoading(true);
     
     try {
-      // 1. Reset room status and counters, and wipe assassination result
+      // 1. Reset room status and counters, and wipe assassination result / game outcomes
       const newSettings = { ...gameState.settings };
       delete newSettings.assassinationResult;
+      delete newSettings.evilWonByQuests;
 
       await supabase.from('rooms').update({
         status: 'lobby',
@@ -26,6 +27,12 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
       
       // 2. Clear out old quests (this cascades to votes and quest_cards)
       await supabase.from('quests').delete().eq('room_id', roomId);
+      
+      // Clear lady of lake assignments
+      await supabase.from('lady_of_lake').delete().eq('room_id', roomId);
+
+      // Clear game events log
+      await supabase.from('game_events').delete().eq('room_id', roomId);
       
       // 3. Clear everyone's roles and teams
       await supabase.from('players').update({
@@ -62,7 +69,7 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
   const goodPlayers = gameState.players.filter(p => p.team === 'good');
   const evilPlayers = gameState.players.filter(p => p.team === 'evil');
   const assassination = gameState.settings.assassinationResult;
-  const evilWonByQuests = gameState.quests.filter(q => q.questResult === 'fail').length >= 3;
+  const evilWonByQuests = gameState.settings.evilWonByQuests || gameState.quests.filter(q => q.questResult === 'fail').length >= 3;
 
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">

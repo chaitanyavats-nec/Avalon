@@ -68,7 +68,11 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
     if (passed >= 3) {
       await supabase.from('rooms').update({ status: 'assassin', settings: newSettings }).eq('id', roomId);
     } else if (failed >= 3) {
-      await supabase.from('rooms').update({ status: 'ended', settings: newSettings }).eq('id', roomId);
+      const endedSettings = {
+        ...newSettings,
+        evilWonByQuests: true
+      };
+      await supabase.from('rooms').update({ status: 'ended', settings: endedSettings }).eq('id', roomId);
     } else {
       const nextQuestNum = currentQuest.questNumber + 1;
       const nextLeaderIndex = (gameState.players.findIndex(p => p.id === gameState.questLeaderId) + 1) % gameState.players.length;

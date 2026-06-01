@@ -33,6 +33,8 @@ export interface RoomSettings {
   };
   shuffledQuestCards?: QuestCardValue[];
   revealedCardsCount?: number;
+  questLeaders?: Record<number, string>;
+  evilWonByQuests?: boolean;
 }
 
 export interface Player {
