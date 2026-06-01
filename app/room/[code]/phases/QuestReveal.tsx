@@ -1,5 +1,5 @@
 import { GameState, Player } from '@/types/avalon';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 
@@ -9,51 +9,33 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
 
   const currentQuest = gameState.quests.find(q => q.questNumber === gameState.currentQuest);
   
-  const shuffledCards = gameState.settings.shuffledQuestCards || [];
-  const revealedCount = gameState.settings.revealedCardsCount || 0;
+  const shuffledCards: string[] = gameState.settings.shuffledQuestCards || [];
+  const revealedCount: number = gameState.settings.revealedCardsCount || 0;
   
   const isLeader = gameState.questLeaderId === currentPlayer.id;
-  const isBotLeader = Boolean(gameState.players.find(p => p.id === gameState.questLeaderId)?.name.match(/^(Sir|Lady) /));
+  const leaderPlayer = gameState.players.find(p => p.id === gameState.questLeaderId);
+  const isBotLeader = Boolean(leaderPlayer && (leaderPlayer.name.startsWith('Sir ') || leaderPlayer.name.startsWith('Lady ')));
 
-  // Auto-reveal for bots
-  useEffect(() => {
-    if (currentPlayer.isHost && isBotLeader && currentQuest?.id) {
-      if (revealedCount < shuffledCards.length) {
-        const storageKey = `bot_reveal_card_${currentQuest.id}_${revealedCount}`;
-        if (!localStorage.getItem(storageKey)) {
-          localStorage.setItem(storageKey, 'true');
-          setTimeout(() => {
-            supabase.from('rooms').update({ 
-              settings: { ...gameState.settings, revealedCardsCount: revealedCount + 1 } 
-            }).eq('id', roomId);
-          }, 2500);
-        }
-      } else {
-        const storageKey = `bot_finish_quest_${currentQuest.id}`;
-        if (!localStorage.getItem(storageKey)) {
-          localStorage.setItem(storageKey, 'true');
-          setTimeout(() => {
-            processQuestResults();
-          }, 4000);
-        }
-      }
-    }
-  }, [currentPlayer.isHost, isBotLeader, revealedCount, shuffledCards.length, roomId, gameState.settings, currentQuest?.id]);
+  // Keep a ref to the latest settings so timeouts always read fresh data
+  const settingsRef = useRef(gameState.settings);
+  settingsRef.current = gameState.settings;
 
-  const revealNextCard = async () => {
-    if (revealedCount < shuffledCards.length) {
-      setLoading(true);
+  const revealNextCard = useCallback(async () => {
+    const currentSettings = settingsRef.current;
+    const currentRevealed = currentSettings.revealedCardsCount || 0;
+    const cards = currentSettings.shuffledQuestCards || [];
+    if (currentRevealed < cards.length) {
       await supabase.from('rooms').update({ 
-        settings: { ...gameState.settings, revealedCardsCount: revealedCount + 1 } 
+        settings: { ...currentSettings, revealedCardsCount: currentRevealed + 1 } 
       }).eq('id', roomId);
-      setLoading(false);
     }
-  };
+  }, [supabase, roomId]);
 
-  const processQuestResults = async () => {
+  const processQuestResults = useCallback(async () => {
     if (!currentQuest) return;
-    setLoading(true);
-    const fails = shuffledCards.filter(c => c === 'fail').length;
+    const currentSettings = settingsRef.current;
+    const cards: string[] = currentSettings.shuffledQuestCards || [];
+    const fails = cards.filter((c: string) => c === 'fail').length;
     const requiredFails = (gameState.players.length >= 7 && currentQuest.questNumber === 4) ? 2 : 1;
     const questResult = fails >= requiredFails ? 'fail' : 'pass';
 
@@ -73,7 +55,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
     }
     
     // Clean up settings
-    const newSettings = { ...gameState.settings };
+    const newSettings = { ...currentSettings };
     delete newSettings.shuffledQuestCards;
     delete newSettings.revealedCardsCount;
 
@@ -84,7 +66,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
     } else {
       const nextQuestNum = currentQuest.questNumber + 1;
       const nextLeaderIndex = (gameState.players.findIndex(p => p.id === gameState.questLeaderId) + 1) % gameState.players.length;
-      const shouldDoLady = gameState.settings.ladyOfLake && [2, 3, 4].includes(currentQuest.questNumber);
+      const shouldDoLady = currentSettings.ladyOfLake && [2, 3, 4].includes(currentQuest.questNumber);
       
       await supabase.from('rooms').update({ 
         current_quest: nextQuestNum,
@@ -93,8 +75,26 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
         settings: newSettings
       }).eq('id', roomId);
     }
-    setLoading(false);
-  };
+  }, [currentQuest, gameState.quests, gameState.players, gameState.questLeaderId, supabase, roomId]);
+
+  // Auto-reveal for bots — uses only stable primitives as deps
+  useEffect(() => {
+    if (!currentPlayer.isHost || !isBotLeader || !currentQuest?.id) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    if (revealedCount < shuffledCards.length) {
+      timer = setTimeout(() => {
+        revealNextCard();
+      }, 2500);
+    } else if (shuffledCards.length > 0) {
+      timer = setTimeout(() => {
+        processQuestResults();
+      }, 4000);
+    }
+
+    return () => clearTimeout(timer);
+  }, [currentPlayer.isHost, isBotLeader, currentQuest?.id, revealedCount, shuffledCards.length, revealNextCard, processQuestResults]);
 
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
@@ -153,7 +153,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
           </Button>
         )}
 
-        {isLeader && revealedCount >= shuffledCards.length && (
+        {isLeader && revealedCount >= shuffledCards.length && shuffledCards.length > 0 && (
           <Button size="lg" variant="primary" onClick={processQuestResults} disabled={loading} className="px-12 py-6 text-lg">
             Finish Quest
           </Button>
