@@ -13,26 +13,32 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
   const revealedCount = gameState.settings.revealedCardsCount || 0;
   
   const isLeader = gameState.questLeaderId === currentPlayer.id;
-  const isBotLeader = gameState.players.find(p => p.id === gameState.questLeaderId)?.name.match(/^(Sir|Lady) /);
+  const isBotLeader = Boolean(gameState.players.find(p => p.id === gameState.questLeaderId)?.name.match(/^(Sir|Lady) /));
 
   // Auto-reveal for bots
   useEffect(() => {
-    if (currentPlayer.isHost && isBotLeader) {
+    if (currentPlayer.isHost && isBotLeader && currentQuest?.id) {
       if (revealedCount < shuffledCards.length) {
-        const timer = setTimeout(() => {
-          supabase.from('rooms').update({ 
-            settings: { ...gameState.settings, revealedCardsCount: revealedCount + 1 } 
-          }).eq('id', roomId);
-        }, 2500);
-        return () => clearTimeout(timer);
+        const storageKey = `bot_reveal_card_${currentQuest.id}_${revealedCount}`;
+        if (!localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, 'true');
+          setTimeout(() => {
+            supabase.from('rooms').update({ 
+              settings: { ...gameState.settings, revealedCardsCount: revealedCount + 1 } 
+            }).eq('id', roomId);
+          }, 2500);
+        }
       } else {
-        const timer = setTimeout(() => {
-          processQuestResults();
-        }, 4000);
-        return () => clearTimeout(timer);
+        const storageKey = `bot_finish_quest_${currentQuest.id}`;
+        if (!localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, 'true');
+          setTimeout(() => {
+            processQuestResults();
+          }, 4000);
+        }
       }
     }
-  }, [currentPlayer.isHost, isBotLeader, revealedCount, shuffledCards.length, roomId, gameState.settings]);
+  }, [currentPlayer.isHost, isBotLeader, revealedCount, shuffledCards.length, roomId, gameState.settings, currentQuest?.id]);
 
   const revealNextCard = async () => {
     if (revealedCount < shuffledCards.length) {

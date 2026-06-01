@@ -1,14 +1,23 @@
 import { MyRole } from '@/types/avalon';
 import { useState } from 'react';
+import { Sparkles, Eye, Shield, Sword, VenetianMask, Skull, Flame, User, Swords } from 'lucide-react';
 
 export default function RoleCard({ myRole }: { myRole: MyRole }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const isGood = myRole.team === 'good';
 
-  const roleIcons: Record<string, string> = {
-    'Merlin': '🔮', 'Percival': '👁️', 'Loyal Servant of Arthur': '🛡️',
-    'Assassin': '🗡️', 'Morgana': '🪞', 'Mordred': '👿',
-    'Minion of Mordred': '⚔️', 'Oberon': '👤',
+  const getRoleIcon = (roleName: string) => {
+    switch (roleName) {
+      case 'Merlin': return <Sparkles className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Percival': return <Eye className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Loyal Servant of Arthur': return <Shield className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Assassin': return <Sword className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Morgana': return <VenetianMask className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Mordred': return <Skull className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Minion of Mordred': return <Flame className="w-16 h-16" strokeWidth={1.5} />;
+      case 'Oberon': return <User className="w-16 h-16" strokeWidth={1.5} />;
+      default: return <Swords className="w-16 h-16" strokeWidth={1.5} />;
+    }
   };
 
   return (
@@ -37,8 +46,8 @@ export default function RoleCard({ myRole }: { myRole: MyRole }) {
         {/* Back Face (Visible when flipped) */}
         <div className={`absolute inset-0 w-full h-full rounded-xl shadow-xl flex flex-col items-center justify-center p-6 text-center select-none ${isGood ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}`}
              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-          <div className="text-6xl mb-4 drop-shadow-lg">
-            {roleIcons[myRole.role] || '⚔️'}
+          <div className="mb-4 drop-shadow-lg flex items-center justify-center">
+            {getRoleIcon(myRole.role)}
           </div>
           
           <h3 className="text-3xl font-bold mb-1 tracking-tight text-white drop-shadow-sm">

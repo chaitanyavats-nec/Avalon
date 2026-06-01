@@ -2,6 +2,7 @@ import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { useState } from 'react';
+import { Castle, Sword } from 'lucide-react';
 
 export default function GameOver({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
   const [loading, setLoading] = useState(false);
@@ -65,8 +66,10 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
 
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
-      <div className="text-center w-full max-w-md">
-        <div className="text-5xl mb-6">{assassination ? '🗡️' : '🏰'}</div>
+      <div className="text-center w-full max-w-md flex flex-col items-center">
+        <div className="mb-6 text-text-dim">
+          {assassination ? <Sword className="w-16 h-16" strokeWidth={1.5} /> : <Castle className="w-16 h-16" strokeWidth={1.5} />}
+        </div>
         <h1 className="text-3xl font-bold text-text mb-6">Game Over</h1>
 
         {assassination && (

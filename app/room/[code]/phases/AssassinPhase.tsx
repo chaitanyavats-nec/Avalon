@@ -2,6 +2,7 @@ import { GameState, Player } from '@/types/avalon';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { Sword } from 'lucide-react';
 
 export default function AssassinPhase({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
   const supabase = createClient();
@@ -64,8 +65,8 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
 
   return (
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
-      <div className="text-center w-full max-w-md">
-        <div className="text-5xl mb-4">🗡️</div>
+      <div className="text-center w-full max-w-md flex flex-col items-center">
+        <Sword className="w-16 h-16 mb-4 text-danger" strokeWidth={1.5} />
         <h1 className="text-2xl font-bold text-text mb-2 text-danger">The Assassin Strikes</h1>
         
         {isAssassin ? (

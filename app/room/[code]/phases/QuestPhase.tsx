@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GameState, Player, Quest } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { Hourglass, Crown } from 'lucide-react';
 
 export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string }) {
   const supabase = createClient();
@@ -73,8 +74,8 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
 
   if (!currentQuest) return (
     <div className="min-h-screen bg-realm p-4 flex items-center justify-center">
-      <div className="animate-fadeIn text-center">
-        <div className="text-4xl mb-4 animate-breathe">⏳</div>
+      <div className="animate-fadeIn text-center flex flex-col items-center">
+        <Hourglass className="w-12 h-12 mb-4 animate-pulse text-text-dim" />
         <p className="text-parchment-dim">Loading quest data...</p>
       </div>
     </div>
@@ -200,6 +201,22 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
     }
   }, [currentPlayer.isHost, isVotingOnQuest, allCardsSubmitted, currentQuest?.id, gameState.questLeaderId, gameState.players]);
 
+  // Auto-reveal team votes if leader is a bot
+  useEffect(() => {
+    if (currentPlayer.isHost && isVotingOnTeam && allVoted && currentQuest?.id) {
+      const leader = gameState.players.find(p => p.id === gameState.questLeaderId);
+      if (leader && (leader.name.startsWith('Sir ') || leader.name.startsWith('Lady '))) {
+        const storageKey = `bot_reveal_votes_${currentQuest.id}_${currentQuest.proposalCount}`;
+        if (!localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, 'true');
+          setTimeout(() => {
+            processTeamVotes();
+          }, 2500);
+        }
+      }
+    }
+  }, [currentPlayer.isHost, isVotingOnTeam, allVoted, currentQuest?.id, currentQuest?.proposalCount, gameState.questLeaderId, gameState.players]);
+
   const approves = votes.filter(v => v.vote === 'approve').length;
   const rejects = votes.filter(v => v.vote === 'reject').length;
 
@@ -306,9 +323,6 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
         <h1 className="text-2xl font-bold text-text">
           Quest {currentQuest.questNumber}
         </h1>
-        <p className="text-sm text-text mt-2 font-medium bg-surface inline-block px-3 py-1 rounded-full border border-border shadow-sm">
-          👑 Leader: <span className="text-info font-bold">{gameState.players.find(p => p.id === gameState.questLeaderId)?.name}</span>
-        </p>
         <p className="text-xs text-text-dim mt-2">
           Rejections: <span className="text-danger font-semibold">{gameState.rejectionCount}</span>/5
         </p>
@@ -336,7 +350,15 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
         })}
       </div>
 
-      <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6">
+      <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6 mt-2">
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex items-center bg-gray-50 border border-border px-4 py-2 rounded-full shadow-sm text-sm font-medium">
+            <Crown className="w-4 h-4 text-info mr-2" /> 
+            <span className="text-text-dim">Leader:</span> 
+            <span className="text-info font-bold ml-1">{gameState.players.find(p => p.id === gameState.questLeaderId)?.name}</span>
+          </div>
+        </div>
+
         {isProposing && (
           <>
             <h2 className="text-lg font-bold text-center mb-1 text-text">

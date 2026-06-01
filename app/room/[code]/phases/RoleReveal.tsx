@@ -3,6 +3,7 @@ import { GameState, Player, MyRole } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import RoleCard from '@/components/RoleCard';
+import { Moon, Lock } from 'lucide-react';
 
 export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId, myRole }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string; myRole?: MyRole | null }) {
   const [hasSeen, setHasSeen] = useState(false);
@@ -10,8 +11,8 @@ export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId,
   if (!myRole) {
     return (
       <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center text-center">
-        <div>
-          <div className="text-4xl mb-4">🌙</div>
+        <div className="flex flex-col items-center">
+          <Moon className="w-12 h-12 mb-4 text-text-dim" />
           <h2 className="text-xl font-bold text-text mb-2">Close your eyes.</h2>
           <p className="text-text-dim text-sm">Waiting for the game master...</p>
         </div>
@@ -40,8 +41,8 @@ export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId,
         </div>
 
       ) : (
-        <div className="text-center space-y-4">
-          <div className="text-4xl mb-2">🤫</div>
+        <div className="text-center space-y-4 flex flex-col items-center">
+          <Lock className="w-12 h-12 mb-2 text-text-dim" />
           <h2 className="text-xl font-bold text-text">Your secret is safe.</h2>
           <p className="text-sm text-text-dim">Waiting for everyone...</p>
         </div>

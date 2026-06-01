@@ -16,6 +16,7 @@ import LadyOfLake from './phases/LadyOfLake';
 import AssassinPhase from './phases/AssassinPhase';
 import GameOver from './phases/GameOver';
 import RoleCard from '@/components/RoleCard';
+import { Eye } from 'lucide-react';
 
 export default function RoomPage() {
   const params = useParams();
@@ -75,7 +76,7 @@ export default function RoomPage() {
           onClick={() => setShowRoleOverlay(true)}
           className="fixed bottom-6 right-6 bg-surface text-text border border-border shadow-lg rounded-full px-5 py-3 font-bold text-sm z-40 flex items-center gap-2 hover:bg-gray-50 transition-colors"
         >
-          <span className="text-xl leading-none">👁️</span> My Role
+          <Eye className="w-5 h-5" /> My Role
         </button>
       )}
 

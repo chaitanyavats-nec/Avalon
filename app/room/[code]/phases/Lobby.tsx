@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { Crown } from 'lucide-react';
 
 export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string }) {
   const [loading, setLoading] = useState(false);
@@ -97,7 +98,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                     You
                   </span>
                 )}
-                {p.isHost && <span title="Host" className="text-xs">👑</span>}
+                {p.isHost && <Crown className="w-4 h-4 text-info" title="Host" />}
               </span>
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${p.isReady ? 'bg-success/10 text-success' : 'bg-gray-100 text-text-dim'}`}>
