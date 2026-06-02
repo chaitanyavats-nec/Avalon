@@ -1,6 +1,13 @@
 import type { Metadata } from 'next';
 import { MedievalSharp, EB_Garamond } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
+
+const tenebra = localFont({
+  src: '../public/fonts/TenebraTemplar-8OXL2.otf',
+  variable: '--font-tenebra',
+  display: 'swap',
+});
 
 const medieval = MedievalSharp({ 
   subsets: ['latin'], 
@@ -28,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${medieval.variable} ${garamond.variable} antialiased`}>
+      <body className={`${tenebra.variable} ${medieval.variable} ${garamond.variable} antialiased`}>
         {children}
       </body>
     </html>

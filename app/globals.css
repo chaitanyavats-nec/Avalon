@@ -2,13 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: 'Tenebra Templar';
-  src: url('/fonts/TenebraTemplar-8OXL2.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
+
 
 :root {
   --color-bg: #f4f4f5;
@@ -20,12 +14,11 @@
   --color-success: #16a34a;
   --color-danger: #dc2626;
   --color-info: #2563eb;
-  
-  --font-heading: "Tenebra Templar", var(--font-medieval), Cinzel, "Palatino Linotype", "Book Antiqua", Palatino, serif;
-  --font-sans: var(--font-garamond), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
+  --font-heading: var(--font-tenebra), var(--font-medieval), Cinzel, "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  --font-sans: var(--font-garamond), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
