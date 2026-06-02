@@ -9,7 +9,7 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const assassin = gameState.players.find(p => p.role === 'Assassin');
+  const assassin = gameState.players.find(p => p.role === 'Assassin') || gameState.players.find(p => p.role === 'Mordred');
   const isAssassin = currentPlayer.id === assassin?.id;
   const isBotAssassin = assassin && (assassin.name.startsWith('Sir ') || assassin.name.startsWith('Lady '));
 
@@ -67,12 +67,14 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
     <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
       <div className="text-center w-full max-w-md flex flex-col items-center">
         <Sword className="w-20 h-20 mb-4 text-danger animate-float" strokeWidth={1.5} />
-        <h1 className="text-2xl font-bold text-text mb-2 text-danger animate-slideDown">The Assassin Strikes</h1>
+        <h1 className="text-2xl font-bold text-text mb-2 text-danger animate-slideDown">
+          {assassin.role === 'Mordred' ? 'Mordred Strikes' : 'The Assassin Strikes'}
+        </h1>
         
         {isAssassin ? (
           <div className="bg-surface border border-border rounded-lg shadow-sm p-6 mt-6 w-full animate-slideUp animate-pulseGlowDanger">
             <p className="text-sm font-medium text-text mb-6">
-              The forces of Good have succeeded in 3 quests. However, you have one final chance to steal the victory. 
+              The forces of Good have succeeded in 3 quests. However, since you are {assassin.role === 'Mordred' ? 'Mordred (acting as the Assassin)' : 'the Assassin'}, you have one final chance to steal the victory. 
               <br/><br/>
               <strong>Identify and assassinate Merlin!</strong>
             </p>
@@ -101,7 +103,7 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
           <div className="mt-8 bg-surface border border-border p-6 rounded-lg animate-fadeIn">
             <p className="text-lg font-bold text-text mb-2">Wait in silence.</p>
             <p className="text-sm text-text-dim">
-              The Assassin <strong className="text-danger">{assassin.name}</strong> is currently making their final decision. If they find Merlin, Evil will snatch the victory!
+              {assassin.role === 'Mordred' ? 'Mordred' : 'The Assassin'} <strong className="text-danger">{assassin.name}</strong> is currently making their final decision. If they find Merlin, Evil will snatch the victory!
             </p>
             {isBotAssassin && (
               <p className="text-xs text-text-dim mt-4 flex items-center justify-center gap-2">

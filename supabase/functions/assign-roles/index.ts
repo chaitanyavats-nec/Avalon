@@ -45,6 +45,13 @@ function getRoleKnowledge(myRole: string, allPlayers: any[]) {
         seenPlayers.push({ playerId: p.id, name: p.name, visibleAs: 'evil' });
       }
     }
+    
+    // If Mordred is in the game but there is no Assassin, Mordred becomes the assassin.
+    const hasAssassin = allPlayers.some(p => p.role === 'Assassin');
+    if (myRole === 'Mordred' && !hasAssassin) {
+      return { knowledgeText: 'You know the other agents of evil (except Oberon). Note: Since there is no Assassin, you have the assassination power!', seenPlayers };
+    }
+    
     return { knowledgeText: 'You know the other agents of evil (except Oberon).', seenPlayers };
   }
 
@@ -78,25 +85,69 @@ serve(async (req: Request) => {
     }
 
     // 2. Determine exact roles pool
-    const rolesPool = ['Merlin', 'Assassin'];
     const optionalRoles = room.settings.roles || [];
-    rolesPool.push(...optionalRoles);
-
+    
     const evilCounts = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 } as any;
     const goodCounts = { 5: 3, 6: 4, 7: 4, 8: 5, 9: 6, 10: 6 } as any;
     
-    let evilNeeded = evilCounts[players.length];
-    let goodNeeded = goodCounts[players.length];
+    const evilNeeded = evilCounts[players.length] || 2;
+    const goodNeeded = goodCounts[players.length] || 3;
 
-    // subtract the ones we already added
-    for (const r of rolesPool) {
-      if (ROLES[r as keyof typeof ROLES].team === 'evil') evilNeeded--;
-      else goodNeeded--;
+    const finalRolesPool: string[] = [];
+    let evilAdded = 0;
+    let goodAdded = 0;
+
+    // A. Merlin is always in the game
+    finalRolesPool.push('Merlin');
+    goodAdded++;
+
+    // B. Push optional/configured roles up to the team cap limits
+    for (const r of optionalRoles) {
+      if (r === 'Merlin') continue;
+      const team = ROLES[r as keyof typeof ROLES].team;
+      if (team === 'evil') {
+        if (evilAdded < evilNeeded) {
+          finalRolesPool.push(r);
+          evilAdded++;
+        }
+      } else {
+        if (goodAdded < goodNeeded) {
+          finalRolesPool.push(r);
+          goodAdded++;
+        }
+      }
     }
 
-    // fill the rest
-    for (let i = 0; i < evilNeeded; i++) rolesPool.push('Minion of Mordred');
-    for (let i = 0; i < goodNeeded; i++) rolesPool.push('Loyal Servant of Arthur');
+    // C. Safety Fallback: Ensure at least one of Assassin or Mordred is present for assassination phase
+    const hasAssassin = finalRolesPool.includes('Assassin');
+    const hasMordred = finalRolesPool.includes('Mordred');
+    if (!hasAssassin && !hasMordred) {
+      if (evilAdded < evilNeeded) {
+        finalRolesPool.push('Assassin');
+        evilAdded++;
+      } else {
+        // If evil team slots are fully occupied by other special evil roles, replace one with Assassin to maintain balance
+        const lastEvilIdx = finalRolesPool.findLastIndex(r => ROLES[r as keyof typeof ROLES].team === 'evil');
+        if (lastEvilIdx !== -1) {
+          finalRolesPool[lastEvilIdx] = 'Assassin';
+        } else {
+          finalRolesPool.push('Assassin');
+          evilAdded++;
+        }
+      }
+    }
+
+    // D. Fill the remaining spots with generic/base roles
+    while (evilAdded < evilNeeded) {
+      finalRolesPool.push('Minion of Mordred');
+      evilAdded++;
+    }
+    while (goodAdded < goodNeeded) {
+      finalRolesPool.push('Loyal Servant of Arthur');
+      goodAdded++;
+    }
+
+    const rolesPool = finalRolesPool;
 
     // Shuffle roles and assign
     rolesPool.sort(() => Math.random() - 0.5);

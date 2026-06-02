@@ -85,6 +85,13 @@ export function getRoleKnowledge(myRole: RoleName, allPlayers: { id: string, rol
         seenPlayers.push({ playerId: p.id, name: p.name, visibleAs: 'evil' });
       }
     }
+    
+    // If Mordred is in the game but there is no Assassin, Mordred becomes the assassin.
+    const hasAssassin = allPlayers.some(p => p.role === 'Assassin');
+    if (myRole === 'Mordred' && !hasAssassin) {
+      return { knowledgeText: 'You know the other agents of evil (except Oberon). Note: Since there is no Assassin, you have the assassination power!', seenPlayers };
+    }
+    
     return { knowledgeText: 'You know the other agents of evil (except Oberon).', seenPlayers };
   }
 
@@ -99,14 +106,19 @@ export function validateRoles(playerCount: number, selectedRoles: RoleName[]): b
   
   if (!evilCounts[playerCount]) return false;
 
-  let evilRoles = 1; // Assassin is always included
+  let evilRoles = 0;
   let goodRoles = 1; // Merlin is always included
   
   for (const r of selectedRoles) {
-    if (r === 'Merlin' || r === 'Assassin') continue; // Shouldn't be in the toggle list anyway
+    if (r === 'Merlin') continue;
     if (ROLES[r].team === 'evil') evilRoles++;
     else goodRoles++;
   }
+
+  // At least one of Assassin or Mordred must be selected to carry out the assassination
+  const hasAssassin = selectedRoles.includes('Assassin');
+  const hasMordred = selectedRoles.includes('Mordred');
+  if (!hasAssassin && !hasMordred) return false;
 
   return evilRoles <= evilCounts[playerCount] && goodRoles <= goodCounts[playerCount];
 }

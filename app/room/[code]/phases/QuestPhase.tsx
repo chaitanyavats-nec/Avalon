@@ -13,6 +13,36 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const [hasSubmittedCard, setHasSubmittedCard] = useState(false);
   const [selectedQuestNum, setSelectedQuestNum] = useState<number | null>(null);
   const [hoveredQuestNum, setHoveredQuestNum] = useState<number | null>(null);
+  const [pastQuestCards, setPastQuestCards] = useState<Record<string, string[]>>({});
+  const [confirmVoteAction, setConfirmVoteAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmCardAction, setConfirmCardAction] = useState<'success' | 'fail' | null>(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+    const fetchPastCards = async () => {
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('id')
+        .eq('room_id', roomId);
+      
+      if (!quests || quests.length === 0) return;
+      
+      const questIds = quests.map(q => q.id);
+      const { data: cards } = await supabase
+        .from('quest_cards')
+        .select('quest_id, card');
+        
+      if (!cards) return;
+      
+      const cardsMap: Record<string, string[]> = {};
+      for (const q of quests) {
+        cardsMap[q.id] = cards.filter(c => c.quest_id === q.id).map(c => c.card);
+      }
+      setPastQuestCards(cardsMap);
+    };
+    
+    fetchPastCards();
+  }, [roomId, gameState.currentQuest, supabase]);
 
   const handleMouseEnter = (questNum: number) => {
     if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
@@ -400,24 +430,55 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
 
                 <div className="flex justify-between items-center mb-3 pb-1 border-b border-border">
                   <h3 className="font-bold text-xs text-text">Quest {q.questNumber}</h3>
-                  <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
-                    q.questResult === 'pass' 
-                      ? 'bg-success/10 text-success' 
-                      : q.questResult === 'fail' 
-                        ? 'bg-danger/10 text-danger' 
-                        : isCurrent 
-                          ? 'bg-blue-50/10 text-blue-600' 
-                          : 'bg-gray-100 text-text-dim'
-                  }`}>
-                    {q.questResult === 'pass' 
-                      ? 'Passed' 
-                      : q.questResult === 'fail' 
-                        ? 'Failed' 
-                        : isCurrent 
-                          ? 'Active' 
-                          : 'Not Started'
-                    }
-                  </span>
+                  <div className="flex gap-1 items-center">
+                    {(() => {
+                      const cards = pastQuestCards[q.id] || [];
+                      
+                      // For a completed quest, display card results as a row of colored rounded rectangles
+                      if (q.questResult) {
+                        return cards.map((card, cardIdx) => {
+                          const isSuccess = card === 'success';
+                          return (
+                            <div 
+                              key={cardIdx} 
+                              className={`w-6 h-4 rounded-md shadow-sm border flex items-center justify-center text-[8px] font-bold text-white transition-all duration-300 ${
+                                isSuccess 
+                                  ? 'bg-success border-success/40' 
+                                  : 'bg-danger border-danger/40'
+                              }`}
+                              title={isSuccess ? 'Success Card' : 'Fail Card'}
+                            >
+                              {isSuccess ? '✓' : '✗'}
+                            </div>
+                          );
+                        });
+                      }
+                      
+                      // For an active/current quest, show hollow animated blue rectangles representing pending cards
+                      if (isCurrent) {
+                        return Array.from({ length: q.requiredPlayers }).map((_, cardIdx) => (
+                          <div 
+                            key={cardIdx} 
+                            className="w-6 h-4 rounded-md border-2 border-dashed border-blue-500/50 bg-blue-50/5 flex items-center justify-center text-[7px] text-blue-500 font-bold animate-pulse"
+                            title="Pending Quest Action"
+                          >
+                            ?
+                          </div>
+                        ));
+                      }
+                      
+                      // For not-yet-started future quests, show plain dashed placeholder rectangles
+                      return Array.from({ length: q.requiredPlayers }).map((_, cardIdx) => (
+                        <div 
+                          key={cardIdx} 
+                          className="w-6 h-4 rounded-md border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-[7px] text-text-dim"
+                          title="Locked"
+                        >
+                          -
+                        </div>
+                      ));
+                    })()}
+                  </div>
                 </div>
 
                 <div className="space-y-2.5 text-xs">
@@ -509,14 +570,30 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
             </div>
 
             {!myVote ? (
-              <div className="flex gap-4 justify-center animate-scaleIn">
-                <Button onClick={() => submitVote('approve')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
-                  Approve
-                </Button>
-                <Button onClick={() => submitVote('reject')} variant="danger" className="flex-1" disabled={loading}>
-                  Reject
-                </Button>
-              </div>
+              confirmVoteAction ? (
+                <div className="bg-surface border border-border p-4 rounded-xl shadow-sm text-center animate-scaleIn">
+                  <p className="text-sm font-bold text-text mb-4">
+                    Confirm: <span className={confirmVoteAction === 'approve' ? 'text-success' : 'text-danger'}>{confirmVoteAction === 'approve' ? 'Approve' : 'Reject'}</span> this team?
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <Button onClick={() => submitVote(confirmVoteAction)} variant="primary" className="flex-1" disabled={loading}>
+                      Yes, Confirm
+                    </Button>
+                    <Button onClick={() => setConfirmVoteAction(null)} variant="secondary" className="flex-1" disabled={loading}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-4 justify-center animate-scaleIn">
+                  <Button onClick={() => setConfirmVoteAction('approve')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
+                    Approve
+                  </Button>
+                  <Button onClick={() => setConfirmVoteAction('reject')} variant="danger" className="flex-1" disabled={loading}>
+                    Reject
+                  </Button>
+                </div>
+              )
             ) : (
               <div className="text-center">
                 <p className="text-sm mb-1 text-text">
@@ -571,14 +648,30 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
             </p>
 
             {isOnProposedTeam && !hasSubmittedCard && (
-              <div className="flex gap-4 w-full justify-center mb-8">
-                <Button onClick={() => submitQuestCard('success')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
-                  Success
-                </Button>
-                <Button onClick={() => submitQuestCard('fail')} variant="danger" className="flex-1" disabled={loading}>
-                  Fail
-                </Button>
-              </div>
+              confirmCardAction ? (
+                <div className="bg-surface border border-border p-4 rounded-xl shadow-sm text-center mb-8 animate-scaleIn">
+                  <p className="text-sm font-bold text-text mb-4">
+                    Confirm: Play a <span className={confirmCardAction === 'success' ? 'text-success' : 'text-danger'}>{confirmCardAction === 'success' ? 'Success' : 'Fail'}</span> card?
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <Button onClick={() => submitQuestCard(confirmCardAction)} variant="primary" className="flex-1" disabled={loading}>
+                      Yes, Play It
+                    </Button>
+                    <Button onClick={() => setConfirmCardAction(null)} variant="secondary" className="flex-1" disabled={loading}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-4 w-full justify-center mb-8 animate-scaleIn">
+                  <Button onClick={() => setConfirmCardAction('success')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
+                    Success
+                  </Button>
+                  <Button onClick={() => setConfirmCardAction('fail')} variant="danger" className="flex-1" disabled={loading}>
+                    Fail
+                  </Button>
+                </div>
+              )
             )}
 
             <div className="bg-gray-50 border border-border rounded-lg p-4 w-full">
