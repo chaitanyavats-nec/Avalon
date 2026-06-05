@@ -21,13 +21,16 @@ export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId,
   }
 
   return (
-    <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
+    <div className={`min-h-screen bg-realm p-4 flex flex-col items-center justify-center ${currentPlayer.isHost ? 'pb-28' : ''}`}>
       
       {!hasSeen ? (
-        <div className="flex flex-col items-center space-y-8 max-w-sm w-full animate-scaleIn">
-          <h2 className="text-2xl font-bold text-text text-center">
-            Your Role
-          </h2>
+        <div className="flex flex-col items-center space-y-6 max-w-sm md:max-w-md w-full animate-scaleIn">
+          <div className="text-center mb-2">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-text">
+              Your Role
+            </h2>
+            <p className="text-xs text-text-dim mt-1">Hold the card to reveal your identity</p>
+          </div>
           
           <RoleCard myRole={myRole} />
 

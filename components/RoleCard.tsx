@@ -1,83 +1,153 @@
-import { MyRole } from '@/types/avalon';
+import { MyRole, RoleName } from '@/types/avalon';
 import { useState } from 'react';
-import { Sparkles, Eye, Shield, Sword, VenetianMask, Skull, Flame, User, Swords } from 'lucide-react';
+import { ROLES } from '@/lib/game/roles';
 
-export default function RoleCard({ myRole }: { myRole: MyRole }) {
-  const [isFlipped, setIsFlipped] = useState(false);
+const ROLE_ART: Record<RoleName, string> = {
+  'Merlin': '/roles/merlin.png',
+  'Percival': '/roles/percival.png',
+  'Loyal Servant of Arthur': '/roles/loyal_servant.png',
+  'Assassin': '/roles/assassin.png',
+  'Morgana': '/roles/morgana.png',
+  'Mordred': '/roles/mordred.png',
+  'Oberon': '/roles/oberon.png',
+  'Minion of Mordred': '/roles/minion.png',
+};
+
+const TEAM_LABELS: Record<string, string> = {
+  'Merlin': 'Loyal Servant of Arthur',
+  'Percival': 'Loyal Servant of Arthur',
+  'Loyal Servant of Arthur': 'Loyal Servant of Arthur',
+  'Assassin': 'Servant of Mordred',
+  'Morgana': 'Servant of Mordred',
+  'Mordred': 'Commander of Evil',
+  'Oberon': 'Servant of Mordred',
+  'Minion of Mordred': 'Servant of Mordred',
+};
+
+export default function RoleCard({ myRole, forceReveal }: { myRole: MyRole; forceReveal?: boolean }) {
+  const [isHeld, setIsHeld] = useState(false);
+  const isFlipped = forceReveal ?? isHeld;
   const isGood = myRole.team === 'good';
+  const roleDef = ROLES[myRole.role];
+  const artSrc = ROLE_ART[myRole.role];
+  const teamLabel = TEAM_LABELS[myRole.role] || (isGood ? 'Loyal Servant of Arthur' : 'Servant of Mordred');
 
-  const getRoleIcon = (roleName: string) => {
-    switch (roleName) {
-      case 'Merlin': return <Sparkles className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Percival': return <Eye className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Loyal Servant of Arthur': return <Shield className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Assassin': return <Sword className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Morgana': return <VenetianMask className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Mordred': return <Skull className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Minion of Mordred': return <Flame className="w-16 h-16" strokeWidth={1.5} />;
-      case 'Oberon': return <User className="w-16 h-16" strokeWidth={1.5} />;
-      default: return <Swords className="w-16 h-16" strokeWidth={1.5} />;
-    }
-  };
+  const accentColor = isGood ? '#3b82f6' : '#dc2626';
 
   return (
-    <div className="relative w-full max-w-xs aspect-[3/4] cursor-pointer mx-auto"
-         style={{ perspective: '1000px' }}
-         onPointerDown={() => setIsFlipped(true)}
-         onPointerUp={() => setIsFlipped(false)}
-         onPointerLeave={() => setIsFlipped(false)}>
-         
-      {/* Inner Flip Container */}
-      <div className="w-full h-full relative transition-transform duration-500 ease-out"
-           style={{ 
-             transformStyle: 'preserve-3d', 
-             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' 
-           }}>
-           
-        {/* Front Face (Hidden when flipped) */}
-        <div className="absolute inset-0 w-full h-full bg-surface border border-border rounded-xl shadow-sm flex flex-col items-center justify-center p-6 text-center select-none"
-             style={{ backfaceVisibility: 'hidden' }}>
-          <div className="text-5xl text-text-dim mb-4">A</div>
-          <p className="text-sm font-bold text-text-dim uppercase tracking-widest">
-            Hold to reveal
-          </p>
-        </div>
+    <div
+      className="relative w-full h-[65vh] min-h-[400px] max-h-[600px] max-w-[340px] md:max-w-[400px] mx-auto cursor-pointer select-none"
+      style={{ perspective: '1200px' }}
+      onPointerDown={() => setIsHeld(true)}
+      onPointerUp={() => setIsHeld(false)}
+      onPointerLeave={() => setIsHeld(false)}
+    >
+      <div
+        className="w-full h-full relative"
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          transition: 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)',
+        }}
+      >
 
-        {/* Back Face (Visible when flipped) */}
-        <div className={`absolute inset-0 w-full h-full rounded-xl shadow-xl flex flex-col items-center justify-center p-6 text-center select-none ${isGood ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}`}
-             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-          <div className="mb-4 drop-shadow-lg flex items-center justify-center">
-            {getRoleIcon(myRole.role)}
+        {/* ── FRONT FACE ── Card Back */}
+        <div
+          className="absolute top-0 left-0 w-full h-full bg-surface border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col items-center justify-center py-16 sm:py-24"
+          style={{ backfaceVisibility: 'hidden' }}
+        >
+          <div
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mb-4"
+            style={{ border: '1px solid var(--color-border)' }}
+          >
+            <span className="font-heading text-3xl sm:text-4xl text-text-dim">A</span>
           </div>
-          
-          <h3 className="text-3xl font-bold mb-1 tracking-tight text-white drop-shadow-sm">
-            {myRole.role}
-          </h3>
-          <p className="text-xs uppercase font-bold opacity-75 mb-6 tracking-wider">
-            {isGood ? 'Good' : 'Evil'} Team
+          <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-text-dim">
+            Hold to Reveal
           </p>
-          
-          <div className="w-16 h-px bg-white/30 mb-6" />
-
-          <p className="text-sm font-medium leading-snug drop-shadow-sm">
-            {myRole.knowledgeText || (isGood ? 'You see nothing beyond your loyalty.' : 'You serve the darkness.')}
-          </p>
-
-          {myRole.seenPlayers && myRole.seenPlayers.length > 0 && (
-            <div className="w-full text-left space-y-2 mt-6">
-              <p className="text-xs uppercase opacity-75 font-bold text-center tracking-wider">Known Players</p>
-              {myRole.seenPlayers.map(sp => (
-                <div key={sp.playerId} className="bg-black/20 p-2 rounded-lg flex justify-between items-center backdrop-blur-sm border border-white/10">
-                  <span className="font-semibold text-white text-sm">{sp.name}</span>
-                  <span className={`text-xs uppercase font-bold ${sp.visibleAs === 'evil' ? 'text-red-300' : 'text-blue-300'}`}>
-                    {sp.visibleAs}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
+        {/* ── BACK FACE ── The Reveal */}
+        <div
+          className="absolute top-0 left-0 w-full h-full rounded-2xl overflow-hidden shadow-lg bg-surface flex flex-col"
+          style={{
+            backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg)',
+            border: `1px solid var(--color-border)`,
+          }}
+        >
+          {/* Illustration — full, uncropped */}
+          <div className="w-full bg-[#f0ede8] flex-1 flex items-center justify-center overflow-hidden min-h-0">
+            <img
+              src={artSrc}
+              alt={myRole.role}
+              className="w-full h-full object-cover object-center block"
+              draggable={false}
+            />
+          </div>
+
+          {/* Info Panel */}
+          <div className="bg-surface px-5 py-4 shrink-0 overflow-y-auto">
+            {/* Role Name */}
+            <h2 className="font-heading text-3xl sm:text-4xl text-text text-center leading-tight">
+              {myRole.role}
+            </h2>
+
+            {/* Team Subtitle */}
+            <p className="text-xs sm:text-sm italic text-text-dim text-center mt-1 mb-4">
+              {teamLabel}
+            </p>
+
+            {/* Divider */}
+            <div className="flex items-center gap-2 mb-3 mx-auto max-w-[160px]">
+              <div className="flex-1 h-px bg-border" />
+              <div
+                className="w-1 h-1 rounded-full"
+                style={{ background: accentColor }}
+              />
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Description */}
+            <p className="text-sm sm:text-base text-text-dim text-center leading-relaxed">
+              {roleDef.description}
+            </p>
+
+            {/* Known Players */}
+            {myRole.seenPlayers && myRole.seenPlayers.length > 0 && (
+              <div className="mt-5 sm:mt-6">
+                <p className="text-[10px] sm:text-xs uppercase font-bold tracking-[0.12em] text-text-dim text-center mb-2 sm:mb-3">
+                  Known Players
+                </p>
+                <div className="space-y-1">
+                  {myRole.seenPlayers.map(sp => (
+                    <div
+                      key={sp.playerId}
+                      className="flex justify-between items-center rounded-lg px-3 py-2 bg-[var(--color-bg)]"
+                    >
+                      <span className="text-sm sm:text-base text-text font-medium">{sp.name}</span>
+                      <span
+                        className="text-[10px] sm:text-xs uppercase font-bold tracking-wider"
+                        style={{
+                          color: sp.visibleAs === 'evil' ? '#dc2626' : '#3b82f6',
+                        }}
+                      >
+                        {sp.visibleAs}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Knowledge text for roles with no visible players */}
+            {(!myRole.seenPlayers || myRole.seenPlayers.length === 0) && myRole.knowledgeText && (
+              <p className="text-xs sm:text-sm text-text-dim text-center italic mt-4 sm:mt-5">
+                {myRole.knowledgeText}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
