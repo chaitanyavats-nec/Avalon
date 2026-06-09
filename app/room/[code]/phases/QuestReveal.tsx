@@ -79,7 +79,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
       const shouldDoLady = currentSettings.ladyOfLake && [2, 3, 4].includes(currentQuest.questNumber);
       
       await supabase.from('rooms').update({ 
-        current_quest: nextQuestNum,
+        current_quest: currentSettings.ladyOfLake ? 0 : nextQuestNum,
         quest_leader_index: nextLeaderIndex,
         status: shouldDoLady ? 'lady_of_lake' : 'quest',
         settings: newSettings
@@ -106,12 +106,22 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
     return () => clearTimeout(timer);
   }, [currentPlayer.isHost, isBotLeader, currentQuest?.id, revealedCount, shuffledCards.length, revealNextCard, processQuestResults]);
 
+  const currentBg = currentQuest && gameState.settings.questBackgrounds ? gameState.settings.questBackgrounds[currentQuest.questNumber - 1] : null;
+
   return (
-    <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
-      <div className="text-center w-full max-w-2xl">
-        <h1 className="text-3xl font-bold text-text mb-2 animate-slideDown">Quest Results</h1>
-        <p className="text-sm text-text-dim mb-12 animate-fadeIn">
-          The party has returned. {isLeader ? 'You must reveal their fate.' : 'Waiting for the leader to reveal their fate.'}
+    <div 
+      className="min-h-screen flex flex-col items-center p-6 text-white overflow-y-auto"
+      style={{
+        backgroundColor: '#000',
+        backgroundImage: currentBg ? `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)), url('/backgrounds/${currentBg}')` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+      }}
+    >
+      <div className="w-full max-w-sm md:max-w-md flex flex-col items-center mt-8 animate-fadeIn" style={{ animationDuration: '1s' }}>
+        <h1 className="text-3xl font-heading text-center mb-2 text-white">Quest Results</h1>
+        <p className="text-sm text-center mb-12 text-zinc-400 italic">
+          {isLeader ? 'You must reveal their fate.' : 'Waiting for the leader to reveal their fate.'}
         </p>
 
         <div className="flex flex-wrap justify-center gap-6 mb-16">
@@ -128,9 +138,9 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
                      }}>
                      
                   {/* Front Face (Hidden when flipped) */}
-                  <div className="absolute inset-0 w-full h-full bg-surface border-2 border-border rounded-xl shadow-md flex items-center justify-center"
+                  <div className="absolute inset-0 w-full h-full bg-zinc-900 border-2 border-zinc-700 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center justify-center"
                        style={{ backfaceVisibility: 'hidden' }}>
-                    <div className="text-4xl opacity-20">?</div>
+                    <div className="text-4xl text-zinc-500 font-bold opacity-30">?</div>
                   </div>
 
                   {/* Back Face (Visible when flipped) */}
@@ -158,15 +168,19 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
         </div>
 
         {isLeader && revealedCount < shuffledCards.length && (
-          <Button size="lg" variant="primary" onClick={revealNextCard} disabled={loading} className="animate-pulse px-12 py-6 text-lg animate-pulseGlow">
-            Reveal Next Card
-          </Button>
+          <div className="mt-4 w-full">
+            <Button size="lg" variant="primary" onClick={revealNextCard} disabled={loading} className="animate-pulse py-6 text-lg w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all">
+              Reveal Next Card
+            </Button>
+          </div>
         )}
 
         {isLeader && revealedCount >= shuffledCards.length && shuffledCards.length > 0 && (
-          <Button size="lg" variant="primary" onClick={processQuestResults} disabled={loading} className="px-12 py-6 text-lg">
-            Finish Quest
-          </Button>
+          <div className="mt-4 w-full">
+            <Button size="lg" variant="primary" onClick={processQuestResults} disabled={loading} className="py-6 text-lg w-full bg-success hover:bg-green-600 text-white rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] transition-all">
+              Finish Quest
+            </Button>
+          </div>
         )}
       </div>
     </div>

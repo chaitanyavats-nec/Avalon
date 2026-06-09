@@ -16,6 +16,14 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const [pastQuestCards, setPastQuestCards] = useState<Record<string, string[]>>({});
   const [confirmVoteAction, setConfirmVoteAction] = useState<'approve' | 'reject' | null>(null);
   const [confirmCardAction, setConfirmCardAction] = useState<'success' | 'fail' | null>(null);
+  const [questAreaRevealed, setQuestAreaRevealed] = useState(false);
+  const [isMounting, setIsMounting] = useState(true);
+
+  useEffect(() => {
+    // Small delay to allow the DOM to paint the initial 100vh state before animating
+    const timer = setTimeout(() => setIsMounting(false), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!roomId) return;
@@ -71,6 +79,17 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   useEffect(() => {
     setHasSubmittedCard(false);
   }, [currentQuest?.id]);
+
+  useEffect(() => {
+    if (isVotingOnQuest) {
+      const timer = setTimeout(() => {
+        setQuestAreaRevealed(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    } else {
+      setQuestAreaRevealed(false);
+    }
+  }, [isVotingOnQuest]);
   
   // Realtime subscription for votes and quest cards
   useEffect(() => {
@@ -116,7 +135,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
     };
   }, [currentQuest?.id, isVotingOnTeam, isVotingOnQuest, supabase]);
 
-  if (!currentQuest) return (
+  if (!currentQuest && gameState.currentQuest !== 0) return (
     <div className="min-h-screen bg-realm p-4 flex items-center justify-center">
       <div className="animate-fadeIn text-center flex flex-col items-center">
         <Hourglass className="w-12 h-12 mb-4 animate-pulse text-text-dim" />
@@ -127,6 +146,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
 
   
   const togglePlayer = (id: string) => {
+    if (!currentQuest) return;
     if (selectedPlayers.includes(id)) {
       setSelectedPlayers(selectedPlayers.filter(p => p !== id));
     } else if (selectedPlayers.length < currentQuest.requiredPlayers) {
@@ -135,12 +155,21 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   };
 
   const proposeTeam = async () => {
+    if (!currentQuest) return;
     setLoading(true);
     await supabase.from('quests').update({ proposed_team: selectedPlayers }).eq('id', currentQuest.id);
     setLoading(false);
   };
 
+  const switchActiveQuest = async (questNum: number) => {
+    setLoading(true);
+    await supabase.from('rooms').update({ current_quest: questNum }).eq('id', roomId);
+    setSelectedPlayers([]);
+    setLoading(false);
+  };
+
   const submitVote = async (vote: 'approve' | 'reject') => {
+    if (!currentQuest) return;
     setLoading(true);
     const { error } = await supabase.from('votes').upsert({
       quest_id: currentQuest.id,
@@ -160,6 +189,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   };
 
   const botVotes = async () => {
+    if (!currentQuest) return;
     const botPlayers = gameState.players.filter(p => p.name.startsWith('Sir ') || p.name.startsWith('Lady '));
     // Filter bots that haven't voted yet
     const botsNeedingVote = botPlayers.filter(bot => !votes.some(v => v.player_id === bot.id));
@@ -265,6 +295,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const rejects = votes.filter(v => v.vote === 'reject').length;
 
   const processTeamVotes = async () => {
+    if (!currentQuest) return;
     setLoading(true);
     const isApproved = approves > rejects;
 
@@ -297,6 +328,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   };
 
   const submitQuestCard = async (card: 'success' | 'fail') => {
+    if (!currentQuest) return;
     setLoading(true);
     const { error } = await supabase.from('quest_cards').insert({
       quest_id: currentQuest.id,
@@ -338,10 +370,10 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
 
   // Deduce who has acted based on bot logic, local state, and total card count
   const actedPlayerIds = new Set<string>();
-  const botsOnTeam = currentQuest.proposedTeam.filter(id => {
+  const botsOnTeam = currentQuest?.proposedTeam?.filter(id => {
     const p = gameState.players.find(x => x.id === id);
     return p?.name.startsWith('Sir ') || p?.name.startsWith('Lady ');
-  });
+  }) || [];
   
   // Bots act instantly
   botsOnTeam.forEach(id => actedPlayerIds.add(id));
@@ -352,7 +384,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   }
 
   // Any remaining cards must belong to other human players
-  const remainingTeam = currentQuest.proposedTeam.filter(id => !actedPlayerIds.has(id));
+  const remainingTeam = currentQuest?.proposedTeam?.filter(id => !actedPlayerIds.has(id)) || [];
   let unassignedCards = questCards.length - actedPlayerIds.size;
   while (unassignedCards > 0 && remainingTeam.length > 0) {
     actedPlayerIds.add(remainingTeam.pop()!);
@@ -362,13 +394,21 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const questTitles = ['The First Trial', 'Into the Shadow', 'The Crucible', 'The Darkest Hour', 'The Final Stand'];
   const questSubtitles = ['Trust must be forged in the fires of uncertainty.', 'Deception lurks beneath every smile.', 'Only the worthy shall endure this test.', 'Betrayal or loyalty — the truth draws near.', 'Everything you\'ve fought for comes down to this.'];
 
+  const currentBg = currentQuest && gameState.settings.questBackgrounds ? gameState.settings.questBackgrounds[currentQuest.questNumber - 1] : null;
+
   return (
-    <div className="min-h-screen bg-realm p-4 flex flex-col items-center">
+    <div className="relative min-h-screen bg-realm overflow-hidden flex flex-col items-center">
       
-      {/* Header */}
-      <div className="text-center mt-6 mb-4 animate-slideDown">
+      {/* --- Main Game Panel (Slides Down on Quest Start) --- */}
+      <div 
+        className={`absolute inset-0 p-4 flex flex-col items-center transition-transform duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 bg-realm overflow-y-auto ${
+          isMounting || questAreaRevealed ? 'translate-y-[100vh] pointer-events-none' : 'translate-y-0'
+        }`}
+      >
+        {/* Header */}
+        <div className="text-center mt-6 mb-4 animate-slideDown w-full">
         <h1 className="text-2xl font-bold text-text">
-          Quest {currentQuest.questNumber}
+          {gameState.currentQuest === 0 ? 'Select a Quest' : `Quest ${currentQuest?.questNumber}`}
         </h1>
         <p className="text-xs text-text-dim mt-2">
           Rejections: <span className="text-danger font-semibold">{gameState.rejectionCount}</span>/5
@@ -384,9 +424,15 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
             <button key={q.id} 
                  onMouseEnter={() => handleMouseEnter(q.questNumber)}
                  onMouseLeave={handleMouseLeave}
-                 onClick={() => setSelectedQuestNum(selectedQuestNum === q.questNumber ? null : q.questNumber)}
-                 className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
-                 style={{
+                 onClick={() => {
+                   if (gameState.currentQuest === 0 && !q.questResult && isLeader) {
+                     switchActiveQuest(q.questNumber);
+                   } else {
+                     setSelectedQuestNum(selectedQuestNum === q.questNumber ? null : q.questNumber);
+                   }
+                 }}
+                 className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''} ${gameState.currentQuest === 0 && !q.questResult ? 'border-2 border-dashed border-info text-info bg-surface' : ''}`}
+                 style={gameState.currentQuest === 0 && !q.questResult ? undefined : {
                    backgroundColor: q.questResult === 'pass' 
                      ? 'var(--color-success)' 
                      : q.questResult === 'fail' 
@@ -501,6 +547,14 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                       <p className="text-[10px] text-text-dim italic">No team proposed yet.</p>
                     )}
                   </div>
+                  
+                  {isLeader && isProposing && gameState.settings.ladyOfLake && !q.questResult && !isCurrent && gameState.currentQuest !== 0 && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <Button size="sm" onClick={() => switchActiveQuest(q.questNumber)} className="w-full" disabled={loading} variant="primary">
+                        Set as Active Quest
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -508,14 +562,29 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
         })()}
       </div>
 
-      <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6 mt-2 animate-slideUp">
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center bg-gray-50 border border-border px-4 py-2 rounded-full shadow-sm text-sm font-medium animate-pulseGlow">
-            <Crown className="w-4 h-4 text-info mr-2" /> 
-            <span className="text-text-dim">Leader:</span> 
-            <span className="text-info font-bold ml-1">{gameState.players.find(p => p.id === gameState.questLeaderId)?.name}</span>
-          </div>
+      {gameState.currentQuest === 0 ? (
+        <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6 mt-2 animate-slideUp text-center">
+          <Crown className="w-8 h-8 text-text-dim mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-text mb-2">Awaiting Quest Selection</h2>
+          {isLeader ? (
+            <p className="text-text-dim text-sm">
+              You are the leader. Please select any uncompleted quest from the track above to begin.
+            </p>
+          ) : (
+            <p className="text-text-dim text-sm">
+              Waiting for <strong className="text-text">{gameState.players.find(p => p.id === gameState.questLeaderId)?.name}</strong> to choose the next quest.
+            </p>
+          )}
         </div>
+      ) : (
+        <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-sm p-6 mt-2 animate-slideUp">
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center bg-gray-50 border border-border px-4 py-2 rounded-full shadow-sm text-sm font-medium">
+              <Crown className="w-4 h-4 text-text-dim mr-2" /> 
+              <span className="text-text-dim">Leader:</span> 
+              <span className="text-text font-bold ml-1">{gameState.players.find(p => p.id === gameState.questLeaderId)?.name}</span>
+            </div>
+          </div>
 
         {isProposing && (
           <>
@@ -579,7 +648,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                     <Button onClick={() => submitVote(confirmVoteAction)} variant="primary" className="flex-1" disabled={loading}>
                       Yes, Confirm
                     </Button>
-                    <Button onClick={() => setConfirmVoteAction(null)} variant="secondary" className="flex-1" disabled={loading}>
+                    <Button onClick={() => setConfirmVoteAction(null)} variant="ghost" className="flex-1" disabled={loading}>
                       Cancel
                     </Button>
                   </div>
@@ -637,61 +706,74 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
             )}
           </>
         )}
+      </div>
+      )}
+      </div>
 
-        {isVotingOnQuest && (
-          <>
-            <h2 className="text-lg font-bold text-center mb-4 text-text">
-              Quest Action
-            </h2>
-            <p className="text-sm text-center mb-6 text-text-dim">
-              The team has departed. Choose the outcome.
+      {/* --- Quest Action Area (Revealed Behind) --- */}
+      <div 
+        className={`absolute inset-0 flex flex-col items-center p-6 text-white z-0 overflow-y-auto pointer-events-auto`}
+        style={{
+          backgroundColor: '#000',
+          backgroundImage: currentBg ? `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)), url('/backgrounds/${currentBg}')` : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
+        {isVotingOnQuest && currentQuest && (
+          <div className="w-full max-w-sm md:max-w-md flex flex-col items-center mt-8 animate-fadeIn" style={{ animationDuration: '1s' }}>
+            <h1 className="text-3xl font-heading text-center mb-2 text-white">
+              Quest {currentQuest.questNumber}: {questTitles[currentQuest.questNumber - 1]}
+            </h1>
+            <p className="text-sm text-center mb-8 text-zinc-400 italic">
+              {questSubtitles[currentQuest.questNumber - 1]}
             </p>
 
             {isOnProposedTeam && !hasSubmittedCard && (
               confirmCardAction ? (
-                <div className="bg-surface border border-border p-4 rounded-xl shadow-sm text-center mb-8 animate-scaleIn">
-                  <p className="text-sm font-bold text-text mb-4">
+                <div className="bg-zinc-900 border border-zinc-700 p-5 rounded-2xl shadow-2xl text-center mb-10 w-full animate-scaleIn">
+                  <p className="text-sm font-bold text-white mb-5">
                     Confirm: Play a <span className={confirmCardAction === 'success' ? 'text-success' : 'text-danger'}>{confirmCardAction === 'success' ? 'Success' : 'Fail'}</span> card?
                   </p>
                   <div className="flex gap-3 justify-center">
                     <Button onClick={() => submitQuestCard(confirmCardAction)} variant="primary" className="flex-1" disabled={loading}>
                       Yes, Play It
                     </Button>
-                    <Button onClick={() => setConfirmCardAction(null)} variant="secondary" className="flex-1" disabled={loading}>
+                    <Button onClick={() => setConfirmCardAction(null)} variant="ghost" className="flex-1 border border-zinc-700 text-zinc-300 hover:text-white" disabled={loading}>
                       Cancel
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="flex gap-4 w-full justify-center mb-8 animate-scaleIn">
-                  <Button onClick={() => setConfirmCardAction('success')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
+                <div className="flex gap-4 w-full justify-center mb-10 animate-scaleIn">
+                  <Button onClick={() => setConfirmCardAction('success')} className="flex-1 bg-success hover:bg-green-600 text-white py-4 text-lg rounded-xl shadow-lg" disabled={loading}>
                     Success
                   </Button>
-                  <Button onClick={() => setConfirmCardAction('fail')} variant="danger" className="flex-1" disabled={loading}>
+                  <Button onClick={() => setConfirmCardAction('fail')} variant="danger" className="flex-1 py-4 text-lg rounded-xl shadow-lg" disabled={loading}>
                     Fail
                   </Button>
                 </div>
               )
             )}
 
-            <div className="bg-gray-50 border border-border rounded-lg p-4 w-full">
-              <p className="text-xs uppercase text-text-dim font-bold text-center mb-4">Quest Party</p>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-full shadow-xl">
+              <p className="text-xs uppercase text-zinc-500 font-bold tracking-[0.15em] text-center mb-5">Quest Party Status</p>
               <div className="flex flex-col gap-3">
                 {currentQuest.proposedTeam.map(pid => {
                   const p = gameState.players.find(x => x.id === pid);
                   const hasActed = actedPlayerIds.has(pid);
                   
                   return (
-                    <div key={pid} className="flex justify-between items-center bg-surface border border-border p-3 rounded-md">
-                      <span className="font-semibold text-sm text-text">{p?.name}</span>
+                    <div key={pid} className="flex justify-between items-center bg-black/50 border border-zinc-800 p-4 rounded-xl">
+                      <span className="font-semibold text-sm text-zinc-200">{p?.name}</span>
                       {hasActed ? (
-                        <span className="text-success flex items-center gap-1 text-sm font-bold">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        <span className="text-success flex items-center gap-1.5 text-sm font-bold">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                           Ready
                         </span>
                       ) : (
-                        <span className="text-text-dim flex items-center gap-1 text-sm">
-                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span className="text-zinc-500 flex items-center gap-1.5 text-sm">
+                          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                           Deciding...
                         </span>
                       )}
@@ -702,13 +784,13 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
             </div>
 
             {isLeader && allCardsSubmitted && (
-              <div className="mt-6 text-center">
-                <Button size="sm" onClick={processQuestCards} disabled={loading} variant="primary" className="w-full">
+              <div className="mt-10 w-full">
+                <Button size="lg" onClick={processQuestCards} disabled={loading} variant="primary" className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all">
                   Reveal Quest Result
                 </Button>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

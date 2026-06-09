@@ -45,10 +45,15 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
   const beginGame = async () => {
     setLoading(true);
     try {
+      const backgrounds = ['castle.png', 'forest.png', 'hills.png', 'sea.png', 'village.png'];
+      const questBackgrounds = [...backgrounds].sort(() => Math.random() - 0.5);
+
       const newSettings = {
         ...gameState.settings,
         roles: selectedRoles,
-        ladyOfLake
+        ladyOfLake,
+        playerCount: gameState.players.length,
+        questBackgrounds
       };
 
       const { error: updateError } = await supabase
@@ -73,26 +78,21 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
   };
 
   const addBots = async () => {
-    const requiredPlayers = gameState.settings.playerCount;
-    const currentCount = gameState.players.length;
-    const botsNeeded = requiredPlayers - currentCount;
-    if (botsNeeded <= 0) return;
-
+    if (gameState.players.length >= 10) return;
     setLoading(true);
     const botNames = ['Sir Lancelot', 'Sir Gawain', 'Lady Guinevere', 'Sir Tristan', 'Sir Galahad', 'Sir Percival', 'Sir Bors', 'Sir Bedivere', 'Lady Elaine'];
-    const botInserts = Array.from({ length: botsNeeded }).map((_, i) => ({
+    const i = gameState.players.length;
+    await supabase.from('players').insert({
       room_id: roomId,
       session_id: crypto.randomUUID(),
-      name: botNames[i % botNames.length],
+      name: botNames[i % botNames.length] + ' (Bot)',
       is_host: false,
       is_ready: true,
-    }));
-    await supabase.from('players').insert(botInserts);
+    });
     setLoading(false);
   };
 
   const allReady = gameState.players.length > 0 && gameState.players.every(p => p.isReady);
-  const requiredPlayers = gameState.settings.playerCount;
   const currentCount = gameState.players.length;
 
   return (
@@ -143,66 +143,9 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-border">
           <h2 className="text-lg font-bold text-text">Players</h2>
           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-text-dim">
-            {currentCount} / {requiredPlayers}
+            {currentCount} / 10 Max
           </span>
         </div>
-
-        {currentPlayer.isHost && (
-          <div className="mb-6 bg-gray-50 border border-border rounded-lg p-3.5 flex items-center justify-between shadow-sm animate-fadeIn">
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-bold text-text">Target Players</span>
-              <span className="text-[10px] text-text-dim">Adjust required room capacity</span>
-            </div>
-            <select
-              value={requiredPlayers}
-              onChange={async (e) => {
-                const count = parseInt(e.target.value);
-                const evilCounts: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
-                const newEvilMax = evilCounts[count] || 2;
-
-                // Keep selected roles in sync by automatically pruning excess evil roles if the count shrinks
-                const currentRoles = gameState.settings.roles || [];
-                const evilRolesInCurrent = currentRoles.filter(r => {
-                  return ['Assassin', 'Morgana', 'Mordred', 'Oberon'].includes(r);
-                });
-
-                let newRoles = [...currentRoles];
-                if (evilRolesInCurrent.length > newEvilMax) {
-                  const prunedEvil = evilRolesInCurrent.slice(0, newEvilMax);
-                  const goodRolesInCurrent = currentRoles.filter(r => !['Assassin', 'Morgana', 'Mordred', 'Oberon'].includes(r));
-                  newRoles = [...goodRolesInCurrent, ...prunedEvil];
-                }
-
-                // Ensure either Assassin or Mordred remains selected if we have roles enabled
-                const hasAssassin = newRoles.includes('Assassin');
-                const hasMordred = newRoles.includes('Mordred');
-                if (newRoles.length > 0 && !hasAssassin && !hasMordred) {
-                  newRoles.push('Assassin');
-                }
-
-                const newSettings = {
-                  ...gameState.settings,
-                  playerCount: count,
-                  roles: newRoles
-                };
-
-                setLoading(true);
-                const { error } = await supabase.from('rooms').update({ settings: newSettings }).eq('id', roomId);
-                if (error) {
-                  console.error(error);
-                  alert("Failed to update target players: " + error.message);
-                }
-                setLoading(false);
-              }}
-              disabled={loading}
-              className="bg-surface border border-border rounded-md px-3 py-1.5 text-sm font-semibold text-text focus:outline-none focus:ring-2 focus:ring-text cursor-pointer hover:bg-gray-100 transition-colors"
-            >
-              {[5, 6, 7, 8, 9, 10].map(n => (
-                <option key={n} value={n}>{n} Players</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <ul className="space-y-2 mb-8 stagger-children">
           {gameState.players.map(p => (
@@ -238,7 +181,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
           ))}
 
           {/* Empty slots */}
-          {Array.from({ length: Math.max(0, requiredPlayers - currentCount) }).map((_, i) => (
+          {Array.from({ length: Math.max(0, 5 - currentCount) }).map((_, i) => (
             <li key={`empty-${i}`}
               className="flex items-center p-3 rounded-lg border border-dashed border-border bg-gray-50/50">
               <span className="text-sm text-text-dim italic">Awaiting player...</span>
@@ -250,8 +193,8 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
           <Button
             onClick={toggleReady}
             disabled={loading}
-            variant={currentPlayer.isReady ? "outline" : "primary"}
-            className={`w-full ${currentPlayer.isReady ? 'border-border text-text' : 'bg-text text-surface'}`}
+            variant={currentPlayer.isReady ? "ghost" : "primary"}
+            className={`w-full ${currentPlayer.isReady ? 'text-text-dim hover:text-text' : 'bg-text text-surface'}`}
           >
             {currentPlayer.isReady ? 'Stand Down' : 'I Am Ready'}
           </Button>
@@ -261,24 +204,25 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
               <div className="h-px bg-border my-4" />
 
               <div className="space-y-3">
-                {currentCount < requiredPlayers && (
+                {currentCount < 10 && (
                   <Button
                     onClick={addBots}
                     disabled={loading}
                     variant="ghost"
                     className="w-full text-xs"
                   >
-                    Fill with Bots (Test Mode)
+                    Add Bot (Test Mode)
                   </Button>
                 )}
                 <Button
                   onClick={openRolesModal}
-                  disabled={loading || !allReady || currentCount !== requiredPlayers}
+                  disabled={loading || !allReady || currentCount < 5 || currentCount > 10}
                   variant="primary"
                   className="w-full"
                 >
                   {!allReady ? 'Waiting for players to ready...' :
-                    currentCount !== requiredPlayers ? `Need ${requiredPlayers} players` :
+                    currentCount < 5 ? `Need ${5 - currentCount} more player${5 - currentCount === 1 ? '' : 's'}` :
+                    currentCount > 10 ? 'Maximum 10 players' :
                       'Start Game'}
                 </Button>
               </div>
@@ -331,8 +275,8 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
         const evilCounts: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
         const goodCounts: Record<number, number> = { 5: 3, 6: 4, 7: 4, 8: 5, 9: 6, 10: 6 };
 
-        const goodTeamSize = goodCounts[requiredPlayers] || 3;
-        const evilTeamSize = evilCounts[requiredPlayers] || 2;
+        const goodTeamSize = goodCounts[currentCount] || 3;
+        const evilTeamSize = evilCounts[currentCount] || 2;
 
         const hasPercival = selectedRoles.includes('Percival');
         const hasAssassin = selectedRoles.includes('Assassin');
@@ -359,7 +303,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
               <div className="p-6 border-b border-border flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
                 <div className="text-left">
                   <h2 className="text-xl font-bold text-text">Select Roles & Rules</h2>
-                  <p className="text-xs text-text-dim mt-0.5">Configure your game of Avalon ({requiredPlayers} Players)</p>
+                  <p className="text-xs text-text-dim mt-0.5">Configure your game of Avalon ({currentCount} Players)</p>
                 </div>
                 <button
                   onClick={() => setShowRolesModal(false)}
@@ -535,11 +479,11 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                   <div className="flex h-3 w-full rounded-full overflow-hidden bg-gray-200">
                     <div
                       className="bg-success transition-all duration-300"
-                      style={{ width: `${(goodTeamSize / requiredPlayers) * 100}%` }}
+                      style={{ width: `${(goodTeamSize / currentCount) * 100}%` }}
                     />
                     <div
                       className="bg-danger transition-all duration-300"
-                      style={{ width: `${(evilTeamSize / requiredPlayers) * 100}%` }}
+                      style={{ width: `${(evilTeamSize / currentCount) * 100}%` }}
                     />
                   </div>
 
@@ -583,7 +527,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                   )}
                   {totalEvilSelected > evilTeamSize && (
                     <div className="p-2.5 bg-red-50 border border-red-200 text-danger rounded-lg text-xs font-bold animate-pulse">
-                      🚫 Too many Evil roles selected! At {requiredPlayers} players, you can select at most {evilTeamSize} Evil roles. Please deselect some.
+                      🚫 Too many Evil roles selected! At {currentCount} players, you can select at most {evilTeamSize} Evil roles. Please deselect some.
                     </div>
                   )}
                 </div>
@@ -593,9 +537,9 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
               {/* Modal Footer */}
               <div className="p-6 border-t border-border flex gap-4 bg-gray-50/50 rounded-b-2xl">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setShowRolesModal(false)}
-                  className="flex-1"
+                  className="flex-1 text-text-dim hover:text-text border border-transparent"
                   disabled={loading}
                 >
                   Cancel

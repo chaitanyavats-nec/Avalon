@@ -160,8 +160,22 @@ serve(async (req: Request) => {
     }));
 
     // Save to database
-    for (const p of assignedPlayers) {
-      await supabase.from('players').update({ role: p.role, team: p.team }).eq('id', p.id);
+    for (let i = 0; i < assignedPlayers.length; i++) {
+      const p = assignedPlayers[i];
+      await supabase.from('players').update({ role: p.role, team: p.team, seat_order: i }).eq('id', p.id);
+    }
+
+    // 5. Update room status and pick first leader (randomly)
+    const firstLeaderIndex = Math.floor(Math.random() * players.length);
+
+    if (room.settings.ladyOfLake) {
+      const initialLadyIndex = (firstLeaderIndex + 1) % assignedPlayers.length;
+      const initialHolderId = assignedPlayers[initialLadyIndex].id;
+      await supabase.from('lady_of_lake').insert({
+        room_id: room_id,
+        investigated_player_id: initialHolderId,
+        quest_number: 0
+      });
     }
 
     // 3. Send private broadcasts
@@ -198,10 +212,10 @@ serve(async (req: Request) => {
     await supabase.from('quests').insert(questsToInsert);
 
     // 5. Update room status and pick first leader (randomly)
-    const firstLeaderIndex = Math.floor(Math.random() * players.length);
     await supabase.from('rooms').update({ 
       status: 'role_reveal',
-      quest_leader_index: firstLeaderIndex
+      quest_leader_index: firstLeaderIndex,
+      current_quest: room.settings.ladyOfLake ? 0 : 1
     }).eq('id', room_id);
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

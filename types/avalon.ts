@@ -35,6 +35,7 @@ export interface RoomSettings {
   revealedCardsCount?: number;
   questLeaders?: Record<number, string>;
   evilWonByQuests?: boolean;
+  questBackgrounds?: string[];
 }
 
 export interface Player {
@@ -79,6 +80,7 @@ export interface GameState {
   players: Player[];
   settings: RoomSettings;
   ladyOfLakeHolderId: string | null;
+  ladyOfLakeHistory: any[];
   winner: Team | null;
 }
 

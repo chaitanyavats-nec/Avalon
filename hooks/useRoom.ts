@@ -49,6 +49,12 @@ export function useRoom(roomCode: string, sessionId: string) {
           .eq('room_id', room.id)
           .order('quest_number', { ascending: true });
 
+        const { data: ladyData } = await supabase
+          .from('lady_of_lake')
+          .select('*')
+          .eq('room_id', room.id)
+          .order('created_at', { ascending: false });
+
         if (isMounted) {
           setGameState({
             phase: room.status as any,
@@ -67,7 +73,8 @@ export function useRoom(roomCode: string, sessionId: string) {
             })) : [],
             players,
             settings: room.settings as any,
-            ladyOfLakeHolderId: null,
+            ladyOfLakeHolderId: ladyData && ladyData.length > 0 ? ladyData[0].investigated_player_id : null,
+            ladyOfLakeHistory: ladyData || [],
             winner: null,
           });
           setLoading(false);

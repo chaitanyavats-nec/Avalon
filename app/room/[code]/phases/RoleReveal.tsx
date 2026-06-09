@@ -21,23 +21,23 @@ export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId,
   }
 
   return (
-    <div className={`min-h-screen bg-realm p-4 flex flex-col items-center justify-center ${currentPlayer.isHost ? 'pb-28' : ''}`}>
+    <div className={`min-h-screen p-4 flex flex-col items-center justify-center ${currentPlayer.isHost ? 'pb-28' : ''} ${!hasSeen ? 'bg-black' : 'bg-realm'}`}>
       
       {!hasSeen ? (
-        <div className="flex flex-col items-center space-y-6 max-w-sm md:max-w-md w-full animate-scaleIn">
+        <div className="flex flex-col items-center space-y-6 max-w-sm md:max-w-md w-full animate-slideUpFromBottom">
           <div className="text-center mb-2">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-text">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
               Your Role
             </h2>
-            <p className="text-xs text-text-dim mt-1">Hold the card to reveal your identity</p>
+            <p className="text-xs text-zinc-400 mt-1">Hold the card to reveal your identity</p>
           </div>
           
           <RoleCard myRole={myRole} />
 
           <Button 
             onClick={() => setHasSeen(true)}
-            variant="outline"
-            className="w-full border-border text-text"
+            variant="ghost"
+            className="w-full border border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors"
           >
             I have seen my role
           </Button>
