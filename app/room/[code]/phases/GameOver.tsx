@@ -112,14 +112,42 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
   const evilPlayers = gameState.players.filter(p => p.team === 'evil');
   const assassination = gameState.settings.assassinationResult;
   const evilWonByQuests = gameState.settings.evilWonByQuests || gameState.quests.filter(q => q.questResult === 'fail').length >= 3;
+  const evilWon = (assassination && assassination.isMerlin) || (!assassination && evilWonByQuests);
 
   return (
-    <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
-      <div className="text-center w-full max-w-md flex flex-col items-center">
-        <div className="mb-4 text-text-dim animate-float">
+    <div className={`min-h-screen p-4 flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-1000 ${evilWon ? 'bg-black text-white' : 'bg-realm text-text'}`}>
+      
+      {/* Background Effects */}
+      {evilWon ? (
+        <div className="absolute inset-0 pointer-events-none z-0">
+          {Array.from({ length: 30 }).map((_, i) => (
+            <div 
+              key={i}
+              className="absolute w-1.5 h-1.5 bg-gray-500 rounded-full opacity-0 blur-[1px]"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animation: `fallAsh ${Math.random() * 5 + 5}s linear infinite`,
+                animationDelay: `${Math.random() * 5}s`
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
+          <div 
+            className="w-[200vw] h-[200vw] absolute animate-spinSlow opacity-20"
+            style={{
+              background: 'conic-gradient(from 0deg, transparent 0deg, rgba(234, 179, 8, 0.4) 20deg, transparent 40deg, rgba(234, 179, 8, 0.4) 60deg, transparent 80deg, rgba(234, 179, 8, 0.4) 100deg, transparent 120deg, rgba(234, 179, 8, 0.4) 140deg, transparent 160deg, rgba(234, 179, 8, 0.4) 180deg, transparent 200deg, rgba(234, 179, 8, 0.4) 220deg, transparent 240deg, rgba(234, 179, 8, 0.4) 260deg, transparent 280deg, rgba(234, 179, 8, 0.4) 300deg, transparent 320deg, rgba(234, 179, 8, 0.4) 340deg, transparent 360deg)'
+            }}
+          />
+        </div>
+      )}
+
+      <div className="text-center w-full max-w-md flex flex-col items-center relative z-10">
+        <div className={`mb-4 animate-float ${evilWon ? 'text-zinc-600' : 'text-text-dim'}`}>
           {assassination ? <Sword className="w-20 h-20" strokeWidth={1.5} /> : <Castle className="w-20 h-20" strokeWidth={1.5} />}
         </div>
-        <h1 className="text-3xl font-bold text-text mb-6 animate-slideDown">Game Over</h1>
+        <h1 className="text-3xl font-bold mb-6 animate-slideDown">Game Over</h1>
 
         {/* Interactive Quest Track for Game Over Review */}
         <div className="relative w-[232px] mx-auto flex gap-2 mb-8 justify-center animate-slideDown" style={{ animationDelay: '100ms' }}>
@@ -260,25 +288,25 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
           </div>
         )}
         
-        <div className="bg-surface border border-border rounded-xl shadow-sm p-6 mb-8 text-left animate-slideUp">
+        <div className={`border rounded-xl shadow-sm p-6 mb-8 text-left animate-slideUp ${evilWon ? 'bg-zinc-900/80 border-zinc-800 backdrop-blur-sm' : 'bg-surface border-border'}`}>
           <h2 className="text-lg font-bold text-success mb-3 text-center">Good Team</h2>
           <div className="flex flex-wrap gap-2 justify-center mb-6">
             {goodPlayers.length > 0 ? goodPlayers.map(p => (
-              <span key={p.id} className="text-sm px-3 py-1.5 bg-gray-50 border border-border rounded-lg font-medium text-text">
-                {p.name} <span className="text-text-dim ml-1 text-xs uppercase">{p.role}</span>
+              <span key={p.id} className={`text-sm px-3 py-1.5 border rounded-lg font-medium ${evilWon ? 'bg-black/50 border-zinc-800 text-zinc-200' : 'bg-gray-50 border-border text-text'}`}>
+                {p.name} <span className={`${evilWon ? 'text-zinc-500' : 'text-text-dim'} ml-1 text-xs uppercase`}>{p.role}</span>
               </span>
-            )) : <span className="text-sm text-text-dim">Unknown</span>}
+            )) : <span className={`text-sm ${evilWon ? 'text-zinc-500' : 'text-text-dim'}`}>Unknown</span>}
           </div>
 
-          <div className="h-px bg-border w-full mb-6" />
+          <div className={`h-px w-full mb-6 ${evilWon ? 'bg-zinc-800' : 'bg-border'}`} />
 
           <h2 className="text-lg font-bold text-danger mb-3 text-center">Evil Team</h2>
           <div className="flex flex-wrap gap-2 justify-center">
             {evilPlayers.length > 0 ? evilPlayers.map(p => (
-              <span key={p.id} className="text-sm px-3 py-1.5 bg-gray-50 border border-border rounded-lg font-medium text-text">
-                {p.name} <span className="text-text-dim ml-1 text-xs uppercase">{p.role}</span>
+              <span key={p.id} className={`text-sm px-3 py-1.5 border rounded-lg font-medium ${evilWon ? 'bg-black/50 border-zinc-800 text-zinc-200' : 'bg-gray-50 border-border text-text'}`}>
+                {p.name} <span className={`${evilWon ? 'text-zinc-500' : 'text-text-dim'} ml-1 text-xs uppercase`}>{p.role}</span>
               </span>
-            )) : <span className="text-sm text-text-dim">Unknown</span>}
+            )) : <span className={`text-sm ${evilWon ? 'text-zinc-500' : 'text-text-dim'}`}>Unknown</span>}
           </div>
         </div>
 

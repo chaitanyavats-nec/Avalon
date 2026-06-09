@@ -64,10 +64,16 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
   const viableTargets = gameState.players.filter(p => p.team !== 'evil');
 
   return (
-    <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
-      <div className="text-center w-full max-w-md flex flex-col items-center">
+    <div className="min-h-screen bg-zinc-900 p-4 flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Heavy vignette overlay */}
+      <div 
+        className="absolute inset-0 pointer-events-none z-0" 
+        style={{ background: 'radial-gradient(circle, transparent 20%, black 90%)' }} 
+      />
+
+      <div className="text-center w-full max-w-md flex flex-col items-center relative z-10">
         <Sword className="w-20 h-20 mb-4 text-danger animate-float" strokeWidth={1.5} />
-        <h1 className="text-2xl font-bold text-text mb-2 text-danger animate-slideDown">
+        <h1 className="text-2xl font-bold text-white mb-2 animate-slideDown">
           {assassin.role === 'Mordred' ? 'Mordred Strikes' : 'The Assassin Strikes'}
         </h1>
         

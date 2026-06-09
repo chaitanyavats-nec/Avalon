@@ -107,10 +107,11 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
   }, [currentPlayer.isHost, isBotLeader, currentQuest?.id, revealedCount, shuffledCards.length, revealNextCard, processQuestResults]);
 
   const currentBg = currentQuest && gameState.settings.questBackgrounds ? gameState.settings.questBackgrounds[currentQuest.questNumber - 1] : null;
+  const hasFailRevealed = shuffledCards.slice(0, revealedCount).includes('fail');
 
   return (
     <div 
-      className="min-h-screen flex flex-col items-center p-6 text-white overflow-y-auto"
+      className="min-h-screen flex flex-col items-center p-6 text-white overflow-y-auto relative"
       style={{
         backgroundColor: '#000',
         backgroundImage: currentBg ? `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)), url('/backgrounds/${currentBg}')` : 'none',
@@ -118,7 +119,13 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
         backgroundPosition: 'center'
       }}
     >
-      <div className="w-full max-w-sm md:max-w-md flex flex-col items-center mt-8 animate-fadeIn" style={{ animationDuration: '1s' }}>
+      {/* Red Dramatic Overlay */}
+      <div 
+        className={`fixed inset-0 pointer-events-none transition-opacity duration-1000 ease-in-out z-0 mix-blend-color ${hasFailRevealed ? 'opacity-100' : 'opacity-0'}`}
+        style={{ background: 'linear-gradient(rgba(220, 38, 38, 0.8), rgba(153, 27, 27, 0.4))' }}
+      />
+
+      <div className="w-full max-w-sm md:max-w-md flex flex-col items-center mt-8 animate-fadeIn relative z-10" style={{ animationDuration: '1s' }}>
         <h1 className="text-3xl font-heading text-center mb-2 text-white">Quest Results</h1>
         <p className="text-sm text-center mb-12 text-zinc-400 italic">
           {isLeader ? 'You must reveal their fate.' : 'Waiting for the leader to reveal their fate.'}

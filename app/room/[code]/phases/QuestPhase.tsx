@@ -18,6 +18,15 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const [confirmCardAction, setConfirmCardAction] = useState<'success' | 'fail' | null>(null);
   const [questAreaRevealed, setQuestAreaRevealed] = useState(false);
   const [isMounting, setIsMounting] = useState(true);
+  const [isShaking, setIsShaking] = useState(false);
+
+  useEffect(() => {
+    if (gameState.rejectionCount > 0) {
+      setIsShaking(true);
+      const timer = setTimeout(() => setIsShaking(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.rejectionCount]);
 
   useEffect(() => {
     // Small delay to allow the DOM to paint the initial 100vh state before animating
@@ -403,7 +412,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
       <div 
         className={`absolute inset-0 p-4 flex flex-col items-center transition-transform duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 bg-realm overflow-y-auto ${
           isMounting || questAreaRevealed ? 'translate-y-[100vh] pointer-events-none' : 'translate-y-0'
-        }`}
+        } ${isShaking ? 'animate-shake' : ''}`}
       >
         {/* Header */}
         <div className="text-center mt-6 mb-4 animate-slideDown w-full">
