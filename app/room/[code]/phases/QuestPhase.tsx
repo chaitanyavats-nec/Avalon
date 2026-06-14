@@ -681,27 +681,77 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                   Waiting for others... ({votes.length}/{gameState.players.length})
                 </p>
                 {allVoted && (
-                  <div className="my-4 border border-border rounded-lg bg-gray-50 flex w-full">
-                    <div className="flex-1 text-center py-4 px-2 border-r border-border">
-                      <p className="text-2xl font-bold text-success">{approves}</p>
-                      <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold mb-3">Approve</p>
-                      <div className="flex flex-col gap-1">
-                        {votes.filter(v => v.vote === 'approve').map(v => {
-                          const p = gameState.players.find(p => p.id === v.player_id);
-                          return <span key={v.id} className="text-xs font-medium text-text">{p?.name}</span>;
-                        })}
+                  <div className="my-8 w-full">
+                    <div className="flex justify-between items-center mb-4 px-2">
+                      <div className="text-center w-1/2">
+                        <p className="text-2xl font-bold text-success">{approves}</p>
+                        <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold">Approve</p>
+                      </div>
+                      <div className="text-center w-1/2 border-l border-border">
+                        <p className="text-2xl font-bold text-danger">{rejects}</p>
+                        <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold">Reject</p>
                       </div>
                     </div>
                     
-                    <div className="flex-1 text-center py-4 px-2">
-                      <p className="text-2xl font-bold text-danger">{rejects}</p>
-                      <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold mb-3">Reject</p>
-                      <div className="flex flex-col gap-1">
-                        {votes.filter(v => v.vote === 'reject').map(v => {
-                          const p = gameState.players.find(p => p.id === v.player_id);
-                          return <span key={v.id} className="text-xs font-medium text-text">{p?.name}</span>;
-                        })}
-                      </div>
+                    <div className="relative w-full h-[240px] overflow-hidden pt-4" style={{ perspective: '800px' }}>
+                      {/* Divider line for the play area */}
+                      <div className="absolute inset-y-0 left-1/2 w-px bg-border/50 border-dashed"></div>
+                      
+                      {votes.map((v, i) => {
+                        const p = gameState.players.find(p => p.id === v.player_id);
+                        const isApprove = v.vote === 'approve';
+                        
+                        // Deterministic random position based on player id and vote
+                        const seed = v.player_id.charCodeAt(0) + v.player_id.charCodeAt(v.player_id.length - 1) + i;
+                        
+                        // X position based on vote side (10-40% for approve, 60-90% for reject)
+                        const randomX = isApprove ? 15 + (seed % 25) : 60 + (seed % 25); 
+                        // Y position (20-70%)
+                        const randomY = 15 + ((seed * 7) % 60);
+                        // Rotation
+                        const rotation = (seed * 13) % 360;
+                        const delay = i * 0.15; // Staggered drop
+
+                        // Toss origin (from all directions outside the container)
+                        const tossAngle = ((seed * 27) % 360) * (Math.PI / 180);
+                        const tossDistance = 400; // pixels outside
+                        const startX = `${Math.cos(tossAngle) * tossDistance}px`;
+                        const startY = `${Math.sin(tossAngle) * tossDistance}px`;
+                        
+                        return (
+                          <div 
+                            key={v.id}
+                            className="absolute flex flex-col items-center justify-center animate-tossIn group hover:z-50 active:z-50 focus:z-50"
+                            style={{ 
+                              left: `${randomX}%`, 
+                              top: `${randomY}%`,
+                              animationDelay: `${delay}s`,
+                              animationFillMode: 'both',
+                              '--start-x': startX,
+                              '--start-y': startY
+                            } as React.CSSProperties}
+                          >
+                            <div className="transform transition-all duration-300 hover:scale-125 hover:-translate-y-2 cursor-pointer">
+                              <div className="animate-coinFlip" style={{ animationDelay: `${delay}s`, animationFillMode: 'both' }}>
+                                <div 
+                                  className={`w-12 h-12 rounded-full shadow-[0_6px_12px_rgba(0,0,0,0.25)] border-[3px] flex items-center justify-center font-bold text-xl text-white
+                                    ${isApprove ? 'bg-gradient-to-br from-green-500 to-green-700 border-green-400/80' : 'bg-gradient-to-br from-red-500 to-red-700 border-red-400/80'}
+                                  `}
+                                  style={{ transform: `rotate(${rotation}deg)` }}
+                                >
+                                  <div className="absolute inset-0 rounded-full border border-white/20 m-[2px] pointer-events-none"></div>
+                                  <span style={{ transform: `rotate(-${rotation}deg)` }} className="block drop-shadow-md">
+                                    {isApprove ? '✓' : '✗'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <span className="mt-1 bg-surface/90 px-1.5 py-0.5 rounded text-[9px] font-bold text-text shadow-sm border border-border whitespace-nowrap absolute top-[100%] pointer-events-none animate-fadeIn" style={{ animationDelay: `${delay + 0.3}s`, animationFillMode: 'both' }}>
+                              {p?.name}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
