@@ -1,19 +1,31 @@
 import { GameState, Player } from '@/types/avalon';
-import { ROLE_ART } from '@/lib/game/roles';
-import { X, Droplets } from 'lucide-react';
+import { ROLE_ART, isBot } from '@/lib/game/roles';
+import { createClient } from '@/lib/supabase/client';
+import PlayerAvatar from '@/components/PlayerAvatar';
+import { X, Droplets, Bot } from 'lucide-react';
 
-export default function GameSidebar({ gameState, currentPlayer, open, onClose }: {
+export default function GameSidebar({ gameState, currentPlayer, roomId, open, onClose }: {
   gameState: GameState;
   currentPlayer: Player;
+  roomId: string;
   open: boolean;
   onClose: () => void;
 }) {
+  const supabase = createClient();
   const leaderIdx = gameState.players.findIndex(p => p.id === gameState.questLeaderId);
   const queue = leaderIdx === -1
     ? gameState.players
     : [...gameState.players.slice(leaderIdx), ...gameState.players.slice(0, leaderIdx)];
 
   const rolesInPlay = Array.from(new Set(['Merlin', ...(gameState.settings.roles || [])]));
+
+  // Recovery for a player who has to step away mid-game (dead phone, dropped connection, etc).
+  // Renaming them to the same "Sir "/"Lady " convention used for lobby-added bots is enough to
+  // make every existing bot-auto-play effect in the app pick them up — no schema change needed.
+  const convertToBot = async (player: Player) => {
+    if (!confirm(`Take over "${player.name}" with bot auto-play for the rest of this game?`)) return;
+    await supabase.from('players').update({ name: `Sir ${player.name} (Bot)` }).eq('id', player.id);
+  };
 
   return (
     <>
@@ -46,6 +58,7 @@ export default function GameSidebar({ gameState, currentPlayer, open, onClose }:
               {queue.map((p, i) => {
                 const isLeader = p.id === gameState.questLeaderId;
                 const isHolder = p.id === gameState.ladyOfLakeHolderId;
+                const canConvert = currentPlayer.isHost && p.id !== currentPlayer.id && !isBot(p.name);
                 return (
                   <div
                     key={p.id}
@@ -54,6 +67,7 @@ export default function GameSidebar({ gameState, currentPlayer, open, onClose }:
                     }`}
                   >
                     <span className="text-xs font-mono text-text-dim w-4 text-center">{i + 1}</span>
+                    <PlayerAvatar id={p.id} name={p.name} size={26} />
                     <span className="flex-1 text-sm font-medium text-text truncate">{p.name}</span>
                     <div className="flex items-center gap-1.5">
                       {isLeader && (
@@ -63,6 +77,15 @@ export default function GameSidebar({ gameState, currentPlayer, open, onClose }:
                         <span title="Lady of the Lake Holder" className="w-6 h-6 rounded-full bg-info/10 border border-info/30 flex items-center justify-center">
                           <Droplets className="w-3.5 h-3.5 text-info" />
                         </span>
+                      )}
+                      {canConvert && (
+                        <button
+                          onClick={() => convertToBot(p)}
+                          title="Take over with bot auto-play (if this player has to step away)"
+                          className="w-6 h-6 rounded-full border border-border text-text-dim hover:text-text hover:border-text flex items-center justify-center transition-colors"
+                        >
+                          <Bot className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>

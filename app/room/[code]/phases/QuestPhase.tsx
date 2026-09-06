@@ -3,6 +3,9 @@ import { GameState, Player, Quest } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { isBot } from '@/lib/game/roles';
+import { sfx } from '@/lib/sound';
+import { usePlaySoundOnTrue } from '@/hooks/usePlaySoundOnChange';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import { Hourglass, Crown } from 'lucide-react';
 
 export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string }) {
@@ -84,6 +87,13 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const isVotingOnTeam = (currentQuest?.proposedTeam?.length ?? 0) > 0 && !currentQuest?.teamVoteResult;
   const isVotingOnQuest = currentQuest?.teamVoteResult === 'approved' && !currentQuest?.questResult;
   const isOnProposedTeam = currentQuest?.proposedTeam?.includes(currentPlayer.id) ?? false;
+  const myVoteForSound = votes.find(v => v.player_id === currentPlayer.id);
+
+  // "Your turn" ping — fires once each time one of these becomes true, not on every render
+  usePlaySoundOnTrue(gameState.currentQuest === 0 && isLeader, sfx.notify);
+  usePlaySoundOnTrue(isLeader && isProposing, sfx.notify);
+  usePlaySoundOnTrue(isVotingOnTeam && !myVoteForSound, sfx.notify);
+  usePlaySoundOnTrue(isOnProposedTeam && !hasSubmittedCard && isVotingOnQuest, sfx.notify);
 
   // Reset local submission state when the quest changes
   useEffect(() => {
@@ -642,10 +652,13 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                   key={p.id}
                   disabled={!isLeader}
                   onClick={() => togglePlayer(p.id)}
-                  className={`p-3 rounded-md text-sm text-left border ${selectedPlayers.includes(p.id) ? 'bg-text text-surface border-text' : 'bg-surface text-text border-border'} ${isLeader ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'}`}
+                  className={`p-3 rounded-md text-sm text-left border flex items-center gap-2 ${selectedPlayers.includes(p.id) ? 'bg-text text-surface border-text' : 'bg-surface text-text border-border'} ${isLeader ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'}`}
                 >
-                  {selectedPlayers.includes(p.id) && '✓ '}{p.name}
-                  {p.id === gameState.questLeaderId && ' (Leader)'}
+                  <PlayerAvatar id={p.id} name={p.name} size={22} />
+                  <span className="truncate">
+                    {selectedPlayers.includes(p.id) && '✓ '}{p.name}
+                    {p.id === gameState.questLeaderId && ' (Leader)'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -672,7 +685,8 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
               {currentQuest.proposedTeam.map(pid => {
                 const player = gameState.players.find(p => p.id === pid);
                 return (
-                  <span key={pid} className="px-3 py-1 bg-gray-100 border border-border text-text rounded-full text-sm font-medium">
+                  <span key={pid} className="pl-1 pr-3 py-1 bg-gray-100 border border-border text-text rounded-full text-sm font-medium flex items-center gap-1.5">
+                    <PlayerAvatar id={pid} name={player?.name || '?'} size={20} />
                     {player?.name}
                   </span>
                 );
@@ -838,7 +852,10 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                   
                   return (
                     <div key={pid} className="flex justify-between items-center bg-black/50 border border-zinc-800 p-4 rounded-xl">
-                      <span className="font-semibold text-sm text-zinc-200">{p?.name}</span>
+                      <span className="font-semibold text-sm text-zinc-200 flex items-center gap-2">
+                        <PlayerAvatar id={pid} name={p?.name || '?'} size={22} />
+                        {p?.name}
+                      </span>
                       {hasActed ? (
                         <span className="text-success flex items-center gap-1.5 text-sm font-bold">
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>

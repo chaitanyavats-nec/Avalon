@@ -17,7 +17,8 @@ import AssassinPhase from './phases/AssassinPhase';
 import GameOver from './phases/GameOver';
 import RoleCard from '@/components/RoleCard';
 import GameSidebar from '@/components/GameSidebar';
-import { Eye, Info, X, ScrollText, BookOpen, LayoutList } from 'lucide-react';
+import { isSoundMuted, setSoundMuted } from '@/lib/sound';
+import { Eye, Info, X, ScrollText, BookOpen, LayoutList, Volume2, VolumeX } from 'lucide-react';
 
 // Transition directions: which way the OLD phase exits and the NEW phase enters
 // 'down' = old slides down, new slides up from below
@@ -54,6 +55,16 @@ export default function RoomPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [leaderAnnouncement, setLeaderAnnouncement] = useState<{ name: string; isMe: boolean } | null>(null);
   const prevLeaderIdRef = useRef<string | null>(null);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    setMuted(isSoundMuted());
+  }, []);
+
+  const toggleMuted = () => {
+    setSoundMuted(!muted);
+    setMuted(!muted);
+  };
 
   // Transition state
   const [displayedPhase, setDisplayedPhase] = useState<string | null>(null);
@@ -214,9 +225,19 @@ export default function RoomPage() {
         </button>
       )}
 
+      {/* Sound mute toggle */}
+      <button
+        onClick={toggleMuted}
+        className="fixed top-4 left-28 z-40 w-9 h-9 rounded-full bg-black/40 text-white backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors shadow-lg"
+        title={muted ? 'Unmute sound' : 'Mute sound'}
+      >
+        {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+      </button>
+
       <GameSidebar
         gameState={gameState}
         currentPlayer={currentPlayer}
+        roomId={roomId as string}
         open={showSidebar}
         onClose={() => setShowSidebar(false)}
       />

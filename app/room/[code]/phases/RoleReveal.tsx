@@ -21,7 +21,7 @@ export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId,
   }
 
   return (
-    <div className={`min-h-screen p-4 flex flex-col items-center justify-center ${currentPlayer.isHost ? 'pb-28' : ''} ${!hasSeen ? 'bg-black' : 'bg-realm'}`}>
+    <div className={`min-h-screen p-4 flex flex-col items-center justify-center ${currentPlayer.isHost ? 'pb-28' : ''} ${!hasSeen ? 'bg-black' : 'bg-wallpaper'}`}>
       
       {!hasSeen ? (
         <div className="flex flex-col items-center space-y-6 max-w-sm md:max-w-md w-full animate-slideUpFromBottom">

@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { isBot } from '@/lib/game/roles';
+import { sfx } from '@/lib/sound';
+import { usePlaySoundOnTrue } from '@/hooks/usePlaySoundOnChange';
 import { Droplets, Shield, Ghost, Check } from 'lucide-react';
 
 export default function LadyOfLake({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
@@ -26,6 +28,8 @@ export default function LadyOfLake({ gameState, currentPlayer, roomId }: { gameS
   const isHolderEntering = currentPlayer.id === enteringHolderId;
 
   const eligibleTargets = gameState.players.filter(p => !previousHoldersIds.includes(p.id) && p.id !== enteringHolderId);
+
+  usePlaySoundOnTrue(isHolderEntering && !activeRow, sfx.notify);
 
   const finishPhase = async () => {
     setLoading(true);

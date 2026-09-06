@@ -3,6 +3,7 @@ import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { EVIL_COUNTS, GOOD_COUNTS, ROLE_ART } from '@/lib/game/roles';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import Image from 'next/image';
 import { Crown, Copy, Share, Check } from 'lucide-react';
 
@@ -198,6 +199,7 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
             <li key={p.id}
               className={`flex justify-between items-center p-3 rounded-lg border ${p.id === currentPlayer.id ? 'border-text bg-gray-50' : 'border-border bg-surface'}`}>
               <span className="flex items-center gap-2">
+                <PlayerAvatar id={p.id} name={p.name} size={28} />
                 <span className="font-medium text-text">
                   {p.name}
                 </span>
@@ -229,7 +231,8 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
           {/* Empty slots */}
           {Array.from({ length: Math.max(0, 5 - currentCount) }).map((_, i) => (
             <li key={`empty-${i}`}
-              className="flex items-center p-3 rounded-lg border border-dashed border-border bg-gray-50/50">
+              className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border bg-gray-50/50 animate-breathe">
+              <span className="w-7 h-7 rounded-full border border-dashed border-border shrink-0" />
               <span className="text-sm text-text-dim italic">Awaiting player...</span>
             </li>
           ))}

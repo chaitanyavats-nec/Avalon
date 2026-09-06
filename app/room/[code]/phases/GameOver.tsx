@@ -2,6 +2,7 @@ import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { isBot } from '@/lib/game/roles';
+import { sfx } from '@/lib/sound';
 import { useState, useEffect, useMemo } from 'react';
 import { Castle, Sword } from 'lucide-react';
 
@@ -115,6 +116,13 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
   const evilWonByQuests = gameState.settings.evilWonByQuests || gameState.quests.filter(q => q.questResult === 'fail').length >= 3;
   const evilWon = (assassination && assassination.isMerlin) || (!assassination && evilWonByQuests);
 
+  // Play the win/loss fanfare exactly once when this screen appears
+  useEffect(() => {
+    if (evilWon) sfx.doom();
+    else sfx.victory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Computed once per mount so particles don't jump around on every gameState re-render
   const ashParticles = useMemo(() => (
     Array.from({ length: 30 }).map(() => ({
@@ -124,8 +132,21 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
     }))
   ), []);
 
+  const confettiColors = ['#eab308', '#3b82f6', '#22c55e', '#ef4444', '#a855f7', '#f97316'];
+  const confettiPieces = useMemo(() => (
+    Array.from({ length: 60 }).map(() => ({
+      left: `${Math.random() * 100}%`,
+      duration: `${Math.random() * 2 + 2.5}s`,
+      delay: `${Math.random() * 3}s`,
+      color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+      width: `${Math.random() * 4 + 6}px`,
+      height: `${Math.random() * 6 + 8}px`,
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), []);
+
   return (
-    <div className={`min-h-screen p-4 flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-1000 ${evilWon ? 'bg-black text-white' : 'bg-realm text-text'}`}>
+    <div className={`min-h-screen p-4 flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-1000 ${evilWon ? 'bg-black text-white' : 'bg-wallpaper text-text'}`}>
       
       {/* Background Effects */}
       {evilWon ? (
@@ -144,12 +165,26 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
         </div>
       ) : (
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
-          <div 
+          <div
             className="w-[200vw] h-[200vw] absolute animate-spinSlow opacity-20"
             style={{
               background: 'conic-gradient(from 0deg, transparent 0deg, rgba(234, 179, 8, 0.4) 20deg, transparent 40deg, rgba(234, 179, 8, 0.4) 60deg, transparent 80deg, rgba(234, 179, 8, 0.4) 100deg, transparent 120deg, rgba(234, 179, 8, 0.4) 140deg, transparent 160deg, rgba(234, 179, 8, 0.4) 180deg, transparent 200deg, rgba(234, 179, 8, 0.4) 220deg, transparent 240deg, rgba(234, 179, 8, 0.4) 260deg, transparent 280deg, rgba(234, 179, 8, 0.4) 300deg, transparent 320deg, rgba(234, 179, 8, 0.4) 340deg, transparent 360deg)'
             }}
           />
+          {confettiPieces.map((c, i) => (
+            <div
+              key={i}
+              className="absolute top-0"
+              style={{
+                left: c.left,
+                width: c.width,
+                height: c.height,
+                backgroundColor: c.color,
+                animation: `confettiFall ${c.duration} linear infinite`,
+                animationDelay: c.delay,
+              }}
+            />
+          ))}
         </div>
       )}
 

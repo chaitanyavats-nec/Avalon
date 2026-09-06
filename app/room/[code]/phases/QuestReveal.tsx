@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { isBot } from '@/lib/game/roles';
+import { sfx } from '@/lib/sound';
 
 export default function QuestReveal({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
   const supabase = createClient();
@@ -20,6 +21,22 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
   useEffect(() => {
     setOptimisticRevealed(0);
   }, [currentQuest?.id]);
+
+  // A soft tick each time a card flips, then a pass/fail chime once every card is revealed
+  const prevRevealedRef = useRef(revealedCount);
+  useEffect(() => {
+    if (revealedCount > prevRevealedRef.current) {
+      sfx.flip();
+      if (revealedCount >= shuffledCards.length && shuffledCards.length > 0) {
+        const fails = shuffledCards.filter(c => c === 'fail').length;
+        const requiredFails = (gameState.players.length >= 7 && currentQuest?.questNumber === 4) ? 2 : 1;
+        if (fails >= requiredFails) sfx.fail();
+        else sfx.success();
+      }
+    }
+    prevRevealedRef.current = revealedCount;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealedCount]);
 
 
   const isLeader = gameState.questLeaderId === currentPlayer.id;

@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { isBot } from '@/lib/game/roles';
+import { sfx } from '@/lib/sound';
+import { usePlaySoundOnTrue } from '@/hooks/usePlaySoundOnChange';
 import { Sword } from 'lucide-react';
 
 export default function AssassinPhase({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
@@ -13,6 +15,8 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
   const assassin = gameState.players.find(p => p.role === 'Assassin') || gameState.players.find(p => p.role === 'Mordred');
   const isAssassin = currentPlayer.id === assassin?.id;
   const isBotAssassin = isBot(assassin?.name);
+
+  usePlaySoundOnTrue(isAssassin, sfx.notify);
 
   const handleAssassinate = async (targetId: string) => {
     setLoading(true);
