@@ -6,6 +6,17 @@ export interface RoleDefinition {
   description: string;
 }
 
+export const ROLE_ART: Record<RoleName, string> = {
+  'Merlin': '/roles/merlin.png',
+  'Percival': '/roles/percival.png',
+  'Loyal Servant of Arthur': '/roles/loyal_servant.png',
+  'Assassin': '/roles/assassin.png',
+  'Morgana': '/roles/morgana.png',
+  'Mordred': '/roles/mordred.png',
+  'Oberon': '/roles/oberon.png',
+  'Minion of Mordred': '/roles/minion.png',
+};
+
 export const ROLES: Record<RoleName, RoleDefinition> = {
   'Loyal Servant of Arthur': {
     name: 'Loyal Servant of Arthur',
@@ -98,12 +109,21 @@ export function getRoleKnowledge(myRole: RoleName, allPlayers: { id: string, rol
   return { knowledgeText: '', seenPlayers };
 }
 
+// Bots are named with the "Sir "/"Lady " prefixes used by Lobby.tsx's addBots().
+export function isBot(name: string | undefined | null): boolean {
+  return !!name && (name.startsWith('Sir ') || name.startsWith('Lady '));
+}
+
+// Required evil/good role counts by player count (5-10 players)
+export const EVIL_COUNTS: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
+export const GOOD_COUNTS: Record<number, number> = { 5: 3, 6: 4, 7: 4, 8: 5, 9: 6, 10: 6 };
+
 // Validation function
 export function validateRoles(playerCount: number, selectedRoles: RoleName[]): boolean {
   // Count required slots
-  const evilCounts: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
-  const goodCounts: Record<number, number> = { 5: 3, 6: 4, 7: 4, 8: 5, 9: 6, 10: 6 };
-  
+  const evilCounts = EVIL_COUNTS;
+  const goodCounts = GOOD_COUNTS;
+
   if (!evilCounts[playerCount]) return false;
 
   let evilRoles = 0;

@@ -1,11 +1,55 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { EVIL_COUNTS, GOOD_COUNTS, ROLE_ART } from '@/lib/game/roles';
+import Image from 'next/image';
 import { Crown, Copy, Share, Check } from 'lucide-react';
+
+function RoleOptionCard({ role, art, description, selected, required, accent, onClick }: {
+  role: string;
+  art: string;
+  description: string;
+  selected: boolean;
+  required?: boolean;
+  accent: 'success' | 'danger';
+  onClick?: () => void;
+}) {
+  const accentClasses = accent === 'success'
+    ? { border: 'border-success', bg: 'bg-success/10', ring: 'ring-success', badge: 'bg-success/20 text-success' }
+    : { border: 'border-danger', bg: 'bg-danger/10', ring: 'ring-danger', badge: 'bg-danger/20 text-danger' };
+
+  return (
+    <div
+      onClick={onClick}
+      className={`relative rounded-xl border overflow-hidden select-none transition-all ${
+        required ? 'opacity-85 cursor-default' : 'cursor-pointer hover:-translate-y-0.5'
+      } ${selected ? `${accentClasses.border} ${accentClasses.bg} shadow-sm` : 'border-border bg-surface hover:bg-gray-50'}`}
+    >
+      {selected && (
+        <div className={`absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full flex items-center justify-center ${accent === 'success' ? 'bg-success' : 'bg-danger'}`}>
+          <Check className="w-3 h-3 text-white" />
+        </div>
+      )}
+      <div className="w-full aspect-square bg-[#f0ede8] relative">
+        <Image src={art} alt={role} fill className="object-cover object-top" sizes="120px" />
+      </div>
+      <div className="p-2 text-left">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="font-bold text-xs text-text">{role}</span>
+          {required && (
+            <span className={`text-[8px] font-extrabold uppercase px-1 py-0.5 rounded tracking-wider ${accentClasses.badge}`}>Required</span>
+          )}
+        </div>
+        <p className="text-[10px] text-text-dim mt-0.5 leading-snug">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string }) {
   const [loading, setLoading] = useState(false);
+  const isAddingBotRef = useRef(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const supabase = createClient();
@@ -78,7 +122,8 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
   };
 
   const addBots = async () => {
-    if (gameState.players.length >= 10) return;
+    if (gameState.players.length >= 10 || isAddingBotRef.current) return;
+    isAddingBotRef.current = true;
     setLoading(true);
     const botNames = ['Sir Lancelot', 'Sir Gawain', 'Lady Guinevere', 'Sir Tristan', 'Sir Galahad', 'Sir Percival', 'Sir Bors', 'Sir Bedivere', 'Lady Elaine'];
     const i = gameState.players.length;
@@ -90,13 +135,14 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
       is_ready: true,
     });
     setLoading(false);
+    isAddingBotRef.current = false;
   };
 
   const allReady = gameState.players.length > 0 && gameState.players.every(p => p.isReady);
   const currentCount = gameState.players.length;
 
   return (
-    <div className="min-h-screen bg-realm p-4 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-wallpaper p-4 flex flex-col items-center justify-center">
 
       {/* Header */}
       <div className="text-center mb-8 animate-fadeIn">
@@ -272,11 +318,8 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
       {(() => {
         if (!showRolesModal) return null;
 
-        const evilCounts: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
-        const goodCounts: Record<number, number> = { 5: 3, 6: 4, 7: 4, 8: 5, 9: 6, 10: 6 };
-
-        const goodTeamSize = goodCounts[currentCount] || 3;
-        const evilTeamSize = evilCounts[currentCount] || 2;
+        const goodTeamSize = GOOD_COUNTS[currentCount] || 3;
+        const evilTeamSize = EVIL_COUNTS[currentCount] || 2;
 
         const hasPercival = selectedRoles.includes('Percival');
         const hasAssassin = selectedRoles.includes('Assassin');
@@ -323,38 +366,23 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                   <h3 className="text-xs font-bold uppercase tracking-wider text-success mb-3 flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-success" /> Good Team ({goodTeamSize} Players)
                   </h3>
-                  <div className="space-y-2.5">
-                    {/* Merlin (Core) */}
-                    <div className="flex items-start gap-3 p-3.5 rounded-xl border border-success/20 bg-success/5 opacity-85 select-none">
-                      <input type="checkbox" checked disabled className="mt-1 accent-success cursor-default" />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-sm text-text">Merlin</span>
-                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-success/20 text-success tracking-wider font-mono">Required</span>
-                        </div>
-                        <p className="text-xs text-text-dim mt-0.5">Knows who is Evil (except Mordred). Must remain hidden from the Assassin.</p>
-                      </div>
-                    </div>
-
-                    {/* Percival (Optional) */}
-                    <div
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    <RoleOptionCard
+                      role="Merlin"
+                      art={ROLE_ART['Merlin']}
+                      description="Knows who is Evil (except Mordred)."
+                      selected
+                      required
+                      accent="success"
+                    />
+                    <RoleOptionCard
+                      role="Percival"
+                      art={ROLE_ART['Percival']}
+                      description="Knows Merlin and Morgana, but not which is which."
+                      selected={hasPercival}
+                      accent="success"
                       onClick={() => toggleRole('Percival')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${hasPercival
-                          ? 'border-success bg-success/10'
-                          : 'border-border bg-surface hover:bg-gray-50'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={hasPercival}
-                        onChange={() => { }}
-                        className="mt-1 accent-success pointer-events-none"
-                      />
-                      <div>
-                        <span className="font-bold text-sm text-text">Percival</span>
-                        <p className="text-xs text-text-dim mt-0.5">Knows who Merlin and Morgana are. Protects Merlin by acting as a decoy.</p>
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
 
@@ -363,86 +391,39 @@ export default function Lobby({ gameState, currentPlayer, roomCode, roomId }: { 
                   <h3 className="text-xs font-bold uppercase tracking-wider text-danger mb-3 flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-danger" /> Evil Team ({evilTeamSize} Players)
                   </h3>
-                  <div className="space-y-2.5">
-                    {/* Assassin */}
-                    <div
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    <RoleOptionCard
+                      role="Assassin"
+                      art={ROLE_ART['Assassin']}
+                      description="Gets one guess at Merlin's identity at the end."
+                      selected={hasAssassin}
+                      accent="danger"
                       onClick={() => toggleRole('Assassin')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${hasAssassin
-                          ? 'border-danger bg-danger/10'
-                          : 'border-border bg-surface hover:bg-gray-50'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={hasAssassin}
-                        onChange={() => { }}
-                        className="mt-1 accent-danger pointer-events-none"
-                      />
-                      <div>
-                        <span className="font-bold text-sm text-text">Assassin</span>
-                        <p className="text-xs text-text-dim mt-0.5">Has a final chance to steal victory at the end of the game by guessing Merlin.</p>
-                      </div>
-                    </div>
-
-                    {/* Morgana */}
-                    <div
+                    />
+                    <RoleOptionCard
+                      role="Morgana"
+                      art={ROLE_ART['Morgana']}
+                      description="Appears as Merlin to Percival."
+                      selected={hasMorgana}
+                      accent="danger"
                       onClick={() => toggleRole('Morgana')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${hasMorgana
-                          ? 'border-danger bg-danger/10'
-                          : 'border-border bg-surface hover:bg-gray-50'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={hasMorgana}
-                        onChange={() => { }}
-                        className="mt-1 accent-danger pointer-events-none"
-                      />
-                      <div>
-                        <span className="font-bold text-sm text-text">Morgana</span>
-                        <p className="text-xs text-text-dim mt-0.5">Appears as Merlin to Percival, confusing the forces of Good.</p>
-                      </div>
-                    </div>
-
-                    {/* Mordred */}
-                    <div
+                    />
+                    <RoleOptionCard
+                      role="Mordred"
+                      art={ROLE_ART['Mordred']}
+                      description="Hidden from Merlin's sight."
+                      selected={hasMordred}
+                      accent="danger"
                       onClick={() => toggleRole('Mordred')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${hasMordred
-                          ? 'border-danger bg-danger/10'
-                          : 'border-border bg-surface hover:bg-gray-50'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={hasMordred}
-                        onChange={() => { }}
-                        className="mt-1 accent-danger pointer-events-none"
-                      />
-                      <div>
-                        <span className="font-bold text-sm text-text">Mordred</span>
-                        <p className="text-xs text-text-dim mt-0.5">Hidden from Merlin. Merlin remains blind to Mordred's identity.</p>
-                      </div>
-                    </div>
-
-                    {/* Oberon */}
-                    <div
+                    />
+                    <RoleOptionCard
+                      role="Oberon"
+                      art={ROLE_ART['Oberon']}
+                      description="Isolated — unknown to the other Evil players."
+                      selected={hasOberon}
+                      accent="danger"
                       onClick={() => toggleRole('Oberon')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none ${hasOberon
-                          ? 'border-danger bg-danger/10'
-                          : 'border-border bg-surface hover:bg-gray-50'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={hasOberon}
-                        onChange={() => { }}
-                        className="mt-1 accent-danger pointer-events-none"
-                      />
-                      <div>
-                        <span className="font-bold text-sm text-text">Oberon</span>
-                        <p className="text-xs text-text-dim mt-0.5">Isolated from Evil. Does not know the other Evil players, nor do they know him.</p>
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
 

@@ -1,17 +1,19 @@
 import type { Metadata } from 'next';
-import { MedievalSharp, EB_Garamond } from 'next/font/google';
-import localFont from 'next/font/local';
+import { MedievalSharp, EB_Garamond, UnifrakturMaguntia } from 'next/font/google';
 import './globals.css';
 
-const tenebra = localFont({
-  src: '../public/fonts/TenebraTemplar-8OXL2.otf',
-  variable: '--font-tenebra',
+// Intricate blackletter display font — unlike the old local Tenebra Templar font,
+// this one actually has numeral glyphs (needed for "Quest 4", role counts, etc).
+const blackletter = UnifrakturMaguntia({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-blackletter',
   display: 'swap',
 });
 
-const medieval = MedievalSharp({ 
-  subsets: ['latin'], 
-  weight: '400', 
+const medieval = MedievalSharp({
+  subsets: ['latin'],
+  weight: '400',
   variable: '--font-medieval',
   display: 'swap',
 });
@@ -35,7 +37,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${tenebra.variable} ${medieval.variable} ${garamond.variable} antialiased`}>
+      <body className={`${blackletter.variable} ${medieval.variable} ${garamond.variable} antialiased`}>
         {children}
       </body>
     </html>

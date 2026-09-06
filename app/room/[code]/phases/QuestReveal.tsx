@@ -2,19 +2,29 @@ import { GameState, Player } from '@/types/avalon';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { isBot } from '@/lib/game/roles';
 
 export default function QuestReveal({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
+  const [optimisticRevealed, setOptimisticRevealed] = useState(0);
 
   const currentQuest = gameState.quests.find(q => q.questNumber === gameState.currentQuest);
-  
+
   const shuffledCards: string[] = gameState.settings.shuffledQuestCards || [];
-  const revealedCount: number = gameState.settings.revealedCardsCount || 0;
-  
+  const serverRevealedCount: number = gameState.settings.revealedCardsCount || 0;
+  // Show the optimistic count immediately on click, without waiting for the round trip
+  // to the DB and back through realtime; reset once the server catches up or a new quest starts.
+  const revealedCount = Math.max(serverRevealedCount, Math.min(optimisticRevealed, shuffledCards.length));
+
+  useEffect(() => {
+    setOptimisticRevealed(0);
+  }, [currentQuest?.id]);
+
+
   const isLeader = gameState.questLeaderId === currentPlayer.id;
   const leaderPlayer = gameState.players.find(p => p.id === gameState.questLeaderId);
-  const isBotLeader = Boolean(leaderPlayer && (leaderPlayer.name.startsWith('Sir ') || leaderPlayer.name.startsWith('Lady ')));
+  const isBotLeader = isBot(leaderPlayer?.name);
 
   // Keep a ref to the latest settings so timeouts always read fresh data
   const settingsRef = useRef(gameState.settings);
@@ -25,8 +35,9 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
     const currentRevealed = currentSettings.revealedCardsCount || 0;
     const cards = currentSettings.shuffledQuestCards || [];
     if (currentRevealed < cards.length) {
-      await supabase.from('rooms').update({ 
-        settings: { ...currentSettings, revealedCardsCount: currentRevealed + 1 } 
+      setOptimisticRevealed(currentRevealed + 1);
+      await supabase.from('rooms').update({
+        settings: { ...currentSettings, revealedCardsCount: currentRevealed + 1 }
       }).eq('id', roomId);
     }
   }, [supabase, roomId]);
@@ -77,9 +88,13 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
       const nextQuestNum = currentQuest.questNumber + 1;
       const nextLeaderIndex = (gameState.players.findIndex(p => p.id === gameState.questLeaderId) + 1) % gameState.players.length;
       const shouldDoLady = currentSettings.ladyOfLake && [2, 3, 4].includes(currentQuest.questNumber);
-      
-      await supabase.from('rooms').update({ 
-        current_quest: currentSettings.ladyOfLake ? 0 : nextQuestNum,
+
+      // When heading into Lady of the Lake, keep current_quest at the quest that just
+      // finished — LadyOfLake.tsx needs it to find rows with quest_number below it to
+      // identify the current token holder. It resets current_quest to 0 itself once the
+      // investigation is done, so the leader is prompted to pick the next quest.
+      await supabase.from('rooms').update({
+        current_quest: shouldDoLady ? currentQuest.questNumber : (currentSettings.ladyOfLake ? 0 : nextQuestNum),
         quest_leader_index: nextLeaderIndex,
         status: shouldDoLady ? 'lady_of_lake' : 'quest',
         settings: newSettings
@@ -109,6 +124,15 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
   const currentBg = currentQuest && gameState.settings.questBackgrounds ? gameState.settings.questBackgrounds[currentQuest.questNumber - 1] : null;
   const hasFailRevealed = shuffledCards.slice(0, revealedCount).includes('fail');
 
+  const partyNames = (currentQuest?.proposedTeam || [])
+    .map(pid => gameState.players.find(p => p.id === pid)?.name)
+    .filter((name): name is string => Boolean(name));
+  const partyNamesText = partyNames.length === 0
+    ? ''
+    : partyNames.length === 1
+      ? partyNames[0]
+      : `${partyNames.slice(0, -1).join(', ')} and ${partyNames[partyNames.length - 1]}`;
+
   return (
     <div 
       className="min-h-screen flex flex-col items-center p-6 text-white overflow-y-auto relative"
@@ -128,6 +152,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
       <div className="w-full max-w-sm md:max-w-md flex flex-col items-center mt-8 animate-fadeIn relative z-10" style={{ animationDuration: '1s' }}>
         <h1 className="text-3xl font-heading text-center mb-2 text-white">Quest Results</h1>
         <p className="text-sm text-center mb-12 text-zinc-400 italic">
+          {partyNamesText && <>{partyNamesText} went on this quest. </>}
           {isLeader ? 'You must reveal their fate.' : 'Waiting for the leader to reveal their fate.'}
         </p>
 
@@ -176,7 +201,7 @@ export default function QuestReveal({ gameState, currentPlayer, roomId }: { game
 
         {isLeader && revealedCount < shuffledCards.length && (
           <div className="mt-4 w-full">
-            <Button size="lg" variant="primary" onClick={revealNextCard} disabled={loading} className="animate-pulse py-6 text-lg w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all">
+            <Button size="lg" variant="primary" onClick={revealNextCard} disabled={loading} className="py-6 text-lg w-full rounded-xl">
               Reveal Next Card
             </Button>
           </div>

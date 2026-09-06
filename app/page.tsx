@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-realm flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen bg-wallpaper flex flex-col items-center justify-center p-6">
       <div className="flex flex-col items-center max-w-sm w-full">
         
         {/* Simple Icon */}

@@ -32,7 +32,7 @@ export default function RoleReveal({ gameState, currentPlayer, roomCode, roomId,
             <p className="text-xs text-zinc-400 mt-1">Hold the card to reveal your identity</p>
           </div>
           
-          <RoleCard myRole={myRole} />
+          <RoleCard myRole={myRole} theme="dark" />
 
           <Button 
             onClick={() => setHasSeen(true)}

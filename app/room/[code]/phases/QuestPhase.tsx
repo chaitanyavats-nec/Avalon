@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GameState, Player, Quest } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { isBot } from '@/lib/game/roles';
 import { Hourglass, Crown } from 'lucide-react';
 
 export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId }: { gameState: GameState; currentPlayer: Player; roomCode: string; roomId: string }) {
@@ -177,6 +178,37 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
     setLoading(false);
   };
 
+  // Auto-select the active quest when a bot is leader and it's time to pick one
+  // (Lady of the Lake requires the leader to choose a quest each round). Bots
+  // prefer rounds 2/3/4 since those are the ones Lady of the Lake investigates.
+  //
+  // Deliberately no cleanup/clearTimeout here, matching the other bot-auto-action
+  // effects below: gameState.players/gameState.quests get new array identities on
+  // every realtime refetch even when unchanged, so a cleanup tied to those deps
+  // would cancel the pending pick before it fires. The localStorage guard (set
+  // synchronously, before scheduling) is what prevents double-scheduling instead.
+  useEffect(() => {
+    if (!currentPlayer.isHost || gameState.currentQuest !== 0 || !gameState.settings.ladyOfLake) return;
+
+    const leader = gameState.players.find(p => p.id === gameState.questLeaderId);
+    if (!leader || !isBot(leader.name)) return;
+
+    const completedCount = gameState.quests.filter(q => q.questResult).length;
+    const storageKey = `bot_quest_select_${roomId}_${completedCount}`;
+    if (localStorage.getItem(storageKey)) return;
+
+    const incompleteQuestNums = gameState.quests.filter(q => !q.questResult).map(q => q.questNumber);
+    const preferredQuestNums = incompleteQuestNums.filter(n => [2, 3, 4].includes(n));
+    const pool = preferredQuestNums.length > 0 ? preferredQuestNums : incompleteQuestNums;
+    if (pool.length === 0) return;
+
+    localStorage.setItem(storageKey, 'true');
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    setTimeout(() => {
+      switchActiveQuest(pick);
+    }, 1500);
+  }, [currentPlayer.isHost, gameState.currentQuest, gameState.settings.ladyOfLake, gameState.questLeaderId, gameState.players, gameState.quests, roomId]);
+
   const submitVote = async (vote: 'approve' | 'reject') => {
     if (!currentQuest) return;
     setLoading(true);
@@ -199,7 +231,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
 
   const botVotes = async () => {
     if (!currentQuest) return;
-    const botPlayers = gameState.players.filter(p => p.name.startsWith('Sir ') || p.name.startsWith('Lady '));
+    const botPlayers = gameState.players.filter(p => isBot(p.name));
     // Filter bots that haven't voted yet
     const botsNeedingVote = botPlayers.filter(bot => !votes.some(v => v.player_id === bot.id));
     
@@ -227,8 +259,8 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
     if (currentPlayer.isHost && isVotingOnQuest && currentQuest?.id) {
       const storageKey = `bot_quest_cards_${currentQuest.id}_submitted`;
       if (!localStorage.getItem(storageKey)) {
-        const botsOnTeam = gameState.players.filter(p => 
-          (p.name.startsWith('Sir ') || p.name.startsWith('Lady ')) && 
+        const botsOnTeam = gameState.players.filter(p =>
+          isBot(p.name) &&
           currentQuest.proposedTeam.includes(p.id)
         );
         
@@ -251,7 +283,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   useEffect(() => {
     if (currentPlayer.isHost && isProposing && currentQuest?.id) {
       const leader = gameState.players.find(p => p.id === gameState.questLeaderId);
-      if (leader && (leader.name.startsWith('Sir ') || leader.name.startsWith('Lady '))) {
+      if (leader && isBot(leader.name)) {
         const storageKey = `bot_proposal_${currentQuest.id}_${currentQuest.proposalCount}`;
         if (!localStorage.getItem(storageKey)) {
           // Bots always pick themselves, then random other players
@@ -271,7 +303,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   useEffect(() => {
     if (currentPlayer.isHost && isVotingOnQuest && allCardsSubmitted && currentQuest?.id) {
       const leader = gameState.players.find(p => p.id === gameState.questLeaderId);
-      if (leader && (leader.name.startsWith('Sir ') || leader.name.startsWith('Lady '))) {
+      if (leader && isBot(leader.name)) {
         const storageKey = `bot_reveal_quest_${currentQuest.id}`;
         if (!localStorage.getItem(storageKey)) {
           localStorage.setItem(storageKey, 'true');
@@ -288,7 +320,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   useEffect(() => {
     if (currentPlayer.isHost && isVotingOnTeam && allVoted && currentQuest?.id) {
       const leader = gameState.players.find(p => p.id === gameState.questLeaderId);
-      if (leader && (leader.name.startsWith('Sir ') || leader.name.startsWith('Lady '))) {
+      if (leader && isBot(leader.name)) {
         const storageKey = `bot_reveal_votes_${currentQuest.id}_${currentQuest.proposalCount}`;
         if (!localStorage.getItem(storageKey)) {
           localStorage.setItem(storageKey, 'true');
@@ -381,7 +413,7 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
   const actedPlayerIds = new Set<string>();
   const botsOnTeam = currentQuest?.proposedTeam?.filter(id => {
     const p = gameState.players.find(x => x.id === id);
-    return p?.name.startsWith('Sir ') || p?.name.startsWith('Lady ');
+    return isBot(p?.name);
   }) || [];
   
   // Bots act instantly
@@ -649,27 +681,47 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
 
             {!myVote ? (
               confirmVoteAction ? (
-                <div className="bg-surface border border-border p-4 rounded-xl shadow-sm text-center animate-scaleIn">
-                  <p className="text-sm font-bold text-text mb-4">
-                    Confirm: <span className={confirmVoteAction === 'approve' ? 'text-success' : 'text-danger'}>{confirmVoteAction === 'approve' ? 'Approve' : 'Reject'}</span> this team?
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    <Button onClick={() => submitVote(confirmVoteAction)} variant="primary" className="flex-1" disabled={loading}>
-                      Yes, Confirm
-                    </Button>
-                    <Button onClick={() => setConfirmVoteAction(null)} variant="ghost" className="flex-1" disabled={loading}>
-                      Cancel
-                    </Button>
-                  </div>
+                <div className="flex flex-col items-center animate-scaleIn">
+                  <p className="text-xs text-text-dim uppercase tracking-wider font-bold mb-4">Tap again to confirm</p>
+                  <button
+                    onClick={() => submitVote(confirmVoteAction)}
+                    disabled={loading}
+                    className="rounded-full animate-pulseGlow disabled:opacity-60"
+                  >
+                    <img
+                      src={confirmVoteAction === 'approve' ? '/backgrounds/approve.png' : '/backgrounds/reject.png'}
+                      alt={confirmVoteAction === 'approve' ? 'Approve' : 'Reject'}
+                      draggable={false}
+                      className="w-28 h-28 rounded-full shadow-2xl select-none"
+                    />
+                  </button>
+                  <span className={`mt-3 text-sm font-bold uppercase tracking-wider ${confirmVoteAction === 'approve' ? 'text-success' : 'text-danger'}`}>
+                    {confirmVoteAction === 'approve' ? 'Approve' : 'Reject'}
+                  </span>
+                  <button onClick={() => setConfirmVoteAction(null)} disabled={loading} className="mt-4 text-xs text-text-dim underline">
+                    Choose again
+                  </button>
                 </div>
               ) : (
-                <div className="flex gap-4 justify-center animate-scaleIn">
-                  <Button onClick={() => setConfirmVoteAction('approve')} className="flex-1 bg-success hover:bg-green-700 text-white" disabled={loading}>
-                    Approve
-                  </Button>
-                  <Button onClick={() => setConfirmVoteAction('reject')} variant="danger" className="flex-1" disabled={loading}>
-                    Reject
-                  </Button>
+                <div className="flex gap-8 justify-center items-start animate-scaleIn">
+                  <button onClick={() => setConfirmVoteAction('approve')} disabled={loading} className="flex flex-col items-center gap-2 group">
+                    <img
+                      src="/backgrounds/approve.png"
+                      alt="Approve"
+                      draggable={false}
+                      className="w-20 h-20 rounded-full shadow-lg select-none transition-transform group-hover:scale-110 group-active:scale-95"
+                    />
+                    <span className="text-xs font-bold uppercase tracking-wider text-success">Approve</span>
+                  </button>
+                  <button onClick={() => setConfirmVoteAction('reject')} disabled={loading} className="flex flex-col items-center gap-2 group">
+                    <img
+                      src="/backgrounds/reject.png"
+                      alt="Reject"
+                      draggable={false}
+                      className="w-20 h-20 rounded-full shadow-lg select-none transition-transform group-hover:scale-110 group-active:scale-95"
+                    />
+                    <span className="text-xs font-bold uppercase tracking-wider text-danger">Reject</span>
+                  </button>
                 </div>
               )
             ) : (
@@ -680,81 +732,43 @@ export default function QuestPhase({ gameState, currentPlayer, roomCode, roomId 
                 <p className="text-xs text-text-dim">
                   Waiting for others... ({votes.length}/{gameState.players.length})
                 </p>
-                {allVoted && (
-                  <div className="my-8 w-full">
-                    <div className="flex justify-between items-center mb-4 px-2">
-                      <div className="text-center w-1/2">
-                        <p className="text-2xl font-bold text-success">{approves}</p>
-                        <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold">Approve</p>
-                      </div>
-                      <div className="text-center w-1/2 border-l border-border">
-                        <p className="text-2xl font-bold text-danger">{rejects}</p>
-                        <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold">Reject</p>
-                      </div>
-                    </div>
-                    
-                    <div className="relative w-full h-[240px] overflow-hidden pt-4" style={{ perspective: '800px' }}>
-                      {/* Divider line for the play area */}
-                      <div className="absolute inset-y-0 left-1/2 w-px bg-border/50 border-dashed"></div>
-                      
-                      {votes.map((v, i) => {
-                        const p = gameState.players.find(p => p.id === v.player_id);
-                        const isApprove = v.vote === 'approve';
-                        
-                        // Deterministic random position based on player id and vote
-                        const seed = v.player_id.charCodeAt(0) + v.player_id.charCodeAt(v.player_id.length - 1) + i;
-                        
-                        // X position based on vote side (10-40% for approve, 60-90% for reject)
-                        const randomX = isApprove ? 15 + (seed % 25) : 60 + (seed % 25); 
-                        // Y position (20-70%)
-                        const randomY = 15 + ((seed * 7) % 60);
-                        // Rotation
-                        const rotation = (seed * 13) % 360;
-                        const delay = i * 0.15; // Staggered drop
-
-                        // Toss origin (from all directions outside the container)
-                        const tossAngle = ((seed * 27) % 360) * (Math.PI / 180);
-                        const tossDistance = 400; // pixels outside
-                        const startX = `${Math.cos(tossAngle) * tossDistance}px`;
-                        const startY = `${Math.sin(tossAngle) * tossDistance}px`;
-                        
-                        return (
-                          <div 
-                            key={v.id}
-                            className="absolute flex flex-col items-center justify-center animate-tossIn group hover:z-50 active:z-50 focus:z-50"
-                            style={{ 
-                              left: `${randomX}%`, 
-                              top: `${randomY}%`,
-                              animationDelay: `${delay}s`,
-                              animationFillMode: 'both',
-                              '--start-x': startX,
-                              '--start-y': startY
-                            } as React.CSSProperties}
-                          >
-                            <div className="transform transition-all duration-300 hover:scale-125 hover:-translate-y-2 cursor-pointer">
-                              <div className="animate-coinFlip" style={{ animationDelay: `${delay}s`, animationFillMode: 'both' }}>
-                                <div 
-                                  className={`w-12 h-12 rounded-full shadow-[0_6px_12px_rgba(0,0,0,0.25)] border-[3px] flex items-center justify-center font-bold text-xl text-white
-                                    ${isApprove ? 'bg-gradient-to-br from-green-500 to-green-700 border-green-400/80' : 'bg-gradient-to-br from-red-500 to-red-700 border-red-400/80'}
-                                  `}
-                                  style={{ transform: `rotate(${rotation}deg)` }}
+                {allVoted && (() => {
+                  const approveVotes = votes.filter(v => v.vote === 'approve');
+                  const rejectVotes = votes.filter(v => v.vote === 'reject');
+                  return (
+                    <div className="my-8 w-full grid grid-cols-2 gap-4">
+                      {[
+                        { label: 'Approve', count: approves, coin: '/backgrounds/approve.png', color: 'text-success', list: approveVotes },
+                        { label: 'Reject', count: rejects, coin: '/backgrounds/reject.png', color: 'text-danger', list: rejectVotes },
+                      ].map((col, colIdx) => (
+                        <div key={col.label} className={colIdx === 1 ? 'border-l border-border pl-4' : ''}>
+                          <p className={`text-2xl font-bold text-center ${col.color}`}>{col.count}</p>
+                          <p className="text-[10px] text-text-dim uppercase tracking-wider font-bold text-center mb-3">{col.label}</p>
+                          <div className="flex flex-col items-center gap-2.5">
+                            {col.list.map((v, i) => {
+                              const p = gameState.players.find(p => p.id === v.player_id);
+                              return (
+                                <div
+                                  key={v.id}
+                                  className="flex items-center gap-2 animate-scaleIn"
+                                  style={{ animationDelay: `${i * 0.1}s`, animationFillMode: 'both' }}
                                 >
-                                  <div className="absolute inset-0 rounded-full border border-white/20 m-[2px] pointer-events-none"></div>
-                                  <span style={{ transform: `rotate(-${rotation}deg)` }} className="block drop-shadow-md">
-                                    {isApprove ? '✓' : '✗'}
-                                  </span>
+                                  <img
+                                    src={col.coin}
+                                    alt={col.label}
+                                    draggable={false}
+                                    className="w-8 h-8 rounded-full shadow-md select-none shrink-0"
+                                  />
+                                  <span className="text-xs font-medium text-text truncate max-w-[90px]">{p?.name}</span>
                                 </div>
-                              </div>
-                            </div>
-                            <span className="mt-1 bg-surface/90 px-1.5 py-0.5 rounded text-[9px] font-bold text-text shadow-sm border border-border whitespace-nowrap absolute top-[100%] pointer-events-none animate-fadeIn" style={{ animationDelay: `${delay + 0.3}s`, animationFillMode: 'both' }}>
-                              {p?.name}
-                            </span>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 
                 {isLeader && allVoted && (
                   <Button size="sm" onClick={processTeamVotes} disabled={loading} variant="primary" className="mt-2 w-full">

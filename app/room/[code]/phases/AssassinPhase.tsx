@@ -2,6 +2,7 @@ import { GameState, Player } from '@/types/avalon';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
+import { isBot } from '@/lib/game/roles';
 import { Sword } from 'lucide-react';
 
 export default function AssassinPhase({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
@@ -11,7 +12,7 @@ export default function AssassinPhase({ gameState, currentPlayer, roomId }: { ga
 
   const assassin = gameState.players.find(p => p.role === 'Assassin') || gameState.players.find(p => p.role === 'Mordred');
   const isAssassin = currentPlayer.id === assassin?.id;
-  const isBotAssassin = assassin && (assassin.name.startsWith('Sir ') || assassin.name.startsWith('Lady '));
+  const isBotAssassin = isBot(assassin?.name);
 
   const handleAssassinate = async (targetId: string) => {
     setLoading(true);

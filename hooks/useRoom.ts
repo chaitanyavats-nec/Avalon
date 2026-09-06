@@ -24,10 +24,15 @@ export function useRoom(roomCode: string, sessionId: string) {
         if (roomError) throw roomError;
         if (isMounted) setRoomId(room.id);
 
+        // Order by seat_order (assigned once the game starts) so this array's order exactly
+        // matches the shuffled seating assign-roles used to pick the leader and the initial
+        // Lady of the Lake holder ("player to the leader's right"). Before the game starts,
+        // seat_order is null for everyone, so this falls back to created_at.
         const { data: playersData, error: playersError } = await supabase
           .from('players')
           .select('id, room_id, session_id, name, is_host, is_ready, seat_order, team, role')
           .eq('room_id', room.id)
+          .order('seat_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
 
         if (playersError) throw playersError;
@@ -43,22 +48,23 @@ export function useRoom(roomCode: string, sessionId: string) {
           role: p.role as any,
         }));
 
-        const { data: questsData } = await supabase
-          .from('quests')
-          .select('*')
-          .eq('room_id', room.id)
-          .order('quest_number', { ascending: true });
-
-        const { data: ladyData } = await supabase
-          .from('lady_of_lake')
-          .select('*')
-          .eq('room_id', room.id)
-          .order('created_at', { ascending: false });
+        const [{ data: questsData }, { data: ladyData }] = await Promise.all([
+          supabase
+            .from('quests')
+            .select('*')
+            .eq('room_id', room.id)
+            .order('quest_number', { ascending: true }),
+          supabase
+            .from('lady_of_lake')
+            .select('*')
+            .eq('room_id', room.id)
+            .order('created_at', { ascending: false }),
+        ]);
 
         if (isMounted) {
           setGameState({
             phase: room.status as any,
-            currentQuest: room.current_quest || 1,
+            currentQuest: room.current_quest ?? 1,
             questLeaderId: players[room.quest_leader_index || 0]?.id || '',
             rejectionCount: room.rejection_count || 0,
             quests: questsData ? questsData.map(q => ({

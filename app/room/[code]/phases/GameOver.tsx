@@ -1,7 +1,8 @@
 import { GameState, Player } from '@/types/avalon';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
-import { useState, useEffect } from 'react';
+import { isBot } from '@/lib/game/roles';
+import { useState, useEffect, useMemo } from 'react';
 import { Castle, Sword } from 'lucide-react';
 
 export default function GameOver({ gameState, currentPlayer, roomId }: { gameState: GameState; currentPlayer: Player; roomId: string }) {
@@ -84,16 +85,16 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
 
       // 4. Set human players to not ready
       const humanIds = gameState.players
-        .filter(p => !p.name.startsWith('Sir ') && !p.name.startsWith('Lady '))
+        .filter(p => !isBot(p.name))
         .map(p => p.id);
-      
+
       if (humanIds.length > 0) {
         await supabase.from('players').update({ is_ready: false }).in('id', humanIds);
       }
 
       // 5. Ensure bots stay ready
       const botIds = gameState.players
-        .filter(p => p.name.startsWith('Sir ') || p.name.startsWith('Lady '))
+        .filter(p => isBot(p.name))
         .map(p => p.id);
         
       if (botIds.length > 0) {
@@ -114,20 +115,29 @@ export default function GameOver({ gameState, currentPlayer, roomId }: { gameSta
   const evilWonByQuests = gameState.settings.evilWonByQuests || gameState.quests.filter(q => q.questResult === 'fail').length >= 3;
   const evilWon = (assassination && assassination.isMerlin) || (!assassination && evilWonByQuests);
 
+  // Computed once per mount so particles don't jump around on every gameState re-render
+  const ashParticles = useMemo(() => (
+    Array.from({ length: 30 }).map(() => ({
+      left: `${Math.random() * 100}%`,
+      duration: `${Math.random() * 5 + 5}s`,
+      delay: `${Math.random() * 5}s`,
+    }))
+  ), []);
+
   return (
     <div className={`min-h-screen p-4 flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-1000 ${evilWon ? 'bg-black text-white' : 'bg-realm text-text'}`}>
       
       {/* Background Effects */}
       {evilWon ? (
         <div className="absolute inset-0 pointer-events-none z-0">
-          {Array.from({ length: 30 }).map((_, i) => (
-            <div 
+          {ashParticles.map((p, i) => (
+            <div
               key={i}
               className="absolute w-1.5 h-1.5 bg-gray-500 rounded-full opacity-0 blur-[1px]"
               style={{
-                left: `${Math.random() * 100}%`,
-                animation: `fallAsh ${Math.random() * 5 + 5}s linear infinite`,
-                animationDelay: `${Math.random() * 5}s`
+                left: p.left,
+                animation: `fallAsh ${p.duration} linear infinite`,
+                animationDelay: p.delay
               }}
             />
           ))}
